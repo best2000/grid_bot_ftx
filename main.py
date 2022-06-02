@@ -104,7 +104,7 @@ def grid_val(grid: dict, type: str, value, **kwargs):
             grid['value'].append(value)
             grid['unit'].append(value/p)
         return grid
-    elif type == "pyramid_increase":  # top small pos size => bottom bigger pos size
+    elif type == "pyramid":  # top small pos size => bottom bigger pos size
         if 'increase' not in kwargs:
             raise Exception('increase is missing')
         increase = kwargs['increase']
@@ -114,19 +114,23 @@ def grid_val(grid: dict, type: str, value, **kwargs):
             grid['value'].append(value)
             grid['unit'].append(value/grid['price'][i])
         return grid
-    elif type == "pyramid_multiply":  # top small pos size => bottom bigger pos size
-        if 'multiply' not in kwargs:
-            raise Exception('multiply  is missing')
-        multiply = kwargs['multiply']
+    elif type == "pyramid_invert":  # top small pos size => bottom bigger pos size
+        if 'decrease' not in kwargs:
+            raise Exception('decrease is missing')
+        decrease = kwargs['decrease']
         for i in range(len(grid['price'])):
             if i > 0:
-                value *= multiply
+                value -= decrease
             grid['value'].append(value)
             grid['unit'].append(value/grid['price'][i])
         return grid
 
-g = grid_gap(4000, 500, "pct", gap_pct=5)
-g = grid_val(g, "pyramid_increase", 30, increase=10)
+
+g = grid_gap(100, 5, "pct", gap_pct=5)
+g = grid_val(g, "fix", 10, increase=1)
 g = pd.DataFrame(g)
 g.to_csv('grid.csv')
 print(g)
+print(g['value'].sum())
+
+#profit compound/keep, technical รวบโซน
