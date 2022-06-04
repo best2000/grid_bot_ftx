@@ -1,4 +1,5 @@
 import os
+from time import sleep
 import dotenv
 from numpy import multiply
 import requests
@@ -9,63 +10,25 @@ from configparser import ConfigParser
 import json
 from datetime import datetime
 import asyncio
+import time
 import pandas as pd
+from ftx_client import FtxClient
+from tech import check_ta
+
 
 # load config.ini
 config = ConfigParser()
 config.read('./public/config.ini')
-# settings
-testnet = int(config['binance']['testnet'])
-print('testnet:', testnet, "\n")
-if testnet == 1:
-    base_url = config['binance']['testnet_url']
-    api_key = config['binance']['api_key_testnet']
-    secret_key = config['binance']['secret_key_testnet']
-else:
-    # load .env
-    dotenv.load_dotenv('.env')
-    base_url = config['binance']['url']
-    api_key = os.environ.get("API_KEY")
-    secret_key = os.environ.get("SECRET_KEY")
+market_symbol = config['config']['market_symbol']
+sub_account = config["config"]['sub_account']
 
+# load .env
+dotenv.load_dotenv('.env')
+api_key = os.environ.get("API_KEY")
+secret_key = os.environ.get("SECRET_KEY")
 
-def req(method: str, url: str, params: dict[object, object] = {}, **kwargs):
-    if 'auth' not in kwargs:
-        kwargs['auth'] = False
-
-    if kwargs['auth'] == True:
-        # signature
-        servertime = requests.get(
-            base_url+"/api/v3/time").json()['serverTime']
-        params['timestamp'] = servertime
-        _params = urlencode(params)
-        # hmac
-        hashedsig = hmac.new(secret_key.encode('utf-8'), _params.encode('utf-8'),
-                             hashlib.sha256).hexdigest()
-        params['signature'] = hashedsig
-    # request
-    match method:
-        case "GET":
-            res = requests.get(url, params=params, headers={
-                               "X-MBX-APIKEY": api_key})
-        case "POST":
-            res = requests.post(url, params=params, headers={
-                "X-MBX-APIKEY": api_key})
-    res = res.json()
-    if "code" in res and res['code'] != 200:
-        print(res, end="\n\n")
-    return res
-
-
-def get_balances(symbols: str):
-    res = req("GET", base_url + "/api/v3/account", {}, auth=True)
-    balances = res['balances']
-    balances_dict = {}
-    for s in symbols:
-        for a in balances:
-            if a['asset'] == s:
-                balances_dict[s] = a
-    return balances_dict
+client = FtxClient(api_key,
+                   secret_key, sub_account)
 
 
 def grid_gap(upper_limit_price: float, lower_limit_price: float, type: str = "pct", **kwargs):
@@ -126,11 +89,80 @@ def grid_val(grid: dict, type: str, value, **kwargs):
         return grid
 
 
+def fill_buy(grid):
+    grid['buy'] = []
+    for i in range(len(grid['price'])):
+        grid['buy'].append(0)
+    return grid
+
+
+# generate grid.csv
 g = grid_gap(100, 5, "pct", gap_pct=5)
 g = grid_val(g, "fix", 10, increase=1)
+g = fill_buy(g)
 g = pd.DataFrame(g)
-g.to_csv('grid.csv')
-print(g)
-print(g['value'].sum())
+g.to_csv('./public/grid.csv')
 
-#profit compound/keep, technical รวบโซน
+# read csv to pandas
+grid = pd.read_csv('./public/grid.csv', sep=',', index_col=0)
+
+print(grid)
+print(grid['value'].sum())
+
+
+async def wait():
+    bar = [
+        " | sleeping   ",
+        " / sleeping.  ",
+        " ─ sleeping.. ",
+        " \ sleeping...",
+    ]
+    i = 0
+
+    while True:
+        print(bar[i % len(bar)], end="\r")
+        await asyncio.sleep(0.1)
+        i += 1
+
+
+async def loop():
+    asyncio.create_task(wait())
+    while True:
+        try:
+            # check exhange pair and price
+            market_info = client.get_single_market(market_symbol)
+            if market_info['enabled'] == False:
+                raise Exception("FTX suspended trading!")
+            price = market_info['price']
+
+            # check ta signal
+            ta = check_ta(market_symbol, '1h', 5, 10)
+            if ta == 1:
+                # check grid above price
+                # add pos together and buy
+                print("รวบซื้อข้างบน")
+            elif ta == 2:
+                # check grid below price (only brought)
+                # sell pos amount
+                print("รวบขายข้างล่าง")
+
+            # PRINT---
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("--------------------")
+            print("[CONFIG]")
+            print("market_symbol:", market_symbol)
+            print("sub_account:", sub_account)
+            print("-------------------")
+            print("[STATUS]")
+            print(market_symbol+": "+str(price))
+            print("DD:")
+            print("CF:")
+            print("--------------------")
+        except Exception as err:
+            print(err)
+        await asyncio.sleep(120)
+
+asyncio.run(loop())
+
+# profit compound/keep, technical รวบโซน
+# net ass val (NAV), dd, cash flow per ..., cumulative
