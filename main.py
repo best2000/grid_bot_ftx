@@ -1,4 +1,5 @@
 import os
+from pydoc import cli
 from time import sleep
 import dotenv
 from numpy import multiply
@@ -10,11 +11,11 @@ from configparser import ConfigParser
 import json
 from datetime import datetime
 import asyncio
-import time
+import datetime
 import pandas as pd
 from ftx_client import FtxClient
 from tech import check_ta
-
+from log import *
 
 # load config.ini
 config = ConfigParser()
@@ -31,83 +32,26 @@ client = FtxClient(api_key,
                    secret_key, sub_account)
 
 
-def grid_gap(upper_limit_price: float, lower_limit_price: float, type: str = "pct", **kwargs):
-    if type == "pct":  # top low frequency gap => bottom high frequency gap
-        if 'gap_pct' not in kwargs:
-            raise Exception('gap_pct is missing')
-        gap_pct = kwargs['gap_pct']
-        grid = {"price": []}
-        grid_price = upper_limit_price
-        grid['price'].append(upper_limit_price)
-        while True:
-            grid_price = grid_price*(100-gap_pct)/100
-            if grid_price < lower_limit_price:
-                grid['price'].append(lower_limit_price)
-                break
-            grid['price'].append(grid_price)
-
-        return grid
-    elif type == "fix":  # equally gap
-        if 'grid_count' not in kwargs:
-            raise Exception('grid_count is missing')
-        grid_count = kwargs['grid_count']
-        gap = (upper_limit_price-lower_limit_price)/grid_count
-        grid = {"price": []}
-        for i in range(grid_count+1):
-            price = upper_limit_price-(gap*i)
-            grid['price'].append(price)
-        return grid
+def get_balance(symbol):
+    for a in client.get_balances():
+        if a['coin'] == symbol:
+            return a
 
 
-def grid_val(grid: dict, type: str, value, **kwargs):
-    grid['value'] = []
-    grid['unit'] = []
-    if type == "fix":  # fix value grid
-        for p in grid['price']:
-            grid['value'].append(value)
-            grid['unit'].append(value/p)
-        return grid
-    elif type == "pyramid":  # top small pos size => bottom bigger pos size
-        if 'increase' not in kwargs:
-            raise Exception('increase is missing')
-        increase = kwargs['increase']
-        for i in range(len(grid['price'])):
-            if i > 0:
-                value += increase
-            grid['value'].append(value)
-            grid['unit'].append(value/grid['price'][i])
-        return grid
-    elif type == "pyramid_invert":  # top small pos size => bottom bigger pos size
-        if 'decrease' not in kwargs:
-            raise Exception('decrease is missing')
-        decrease = kwargs['decrease']
-        for i in range(len(grid['price'])):
-            if i > 0:
-                value -= decrease
-            grid['value'].append(value)
-            grid['unit'].append(value/grid['price'][i])
-        return grid
+# check market pair
+client.get_single_market(market_symbol)
 
-
-def fill_buy(grid):
-    grid['buy'] = []
-    for i in range(len(grid['price'])):
-        grid['buy'].append(0)
-    return grid
-
-
-# generate grid.csv
-g = grid_gap(100, 5, "pct", gap_pct=5)
-g = grid_val(g, "fix", 10, increase=1)
-g = fill_buy(g)
-g = pd.DataFrame(g)
-g.to_csv('./public/grid.csv')
+# started nav
+base_symbol = market_symbol.split('/')[0]
+quote_symbol = market_symbol.split('/')[1]
+base_symbol_balance = get_balance(base_symbol)
+quote_symbol_balance = get_balance(quote_symbol)
+init_nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue']) + float(
+    0 if not quote_symbol_balance else quote_symbol_balance['usdValue'])
 
 # read csv to pandas
 grid = pd.read_csv('./public/grid.csv', sep=',', index_col=0)
-
 print(grid)
-print(grid['value'].sum())
 
 
 async def wait():
@@ -135,16 +79,68 @@ async def loop():
                 raise Exception("FTX suspended trading!")
             price = market_info['price']
 
+            # cal nav
+            base_symbol_balance = get_balance(base_symbol)
+            quote_symbol_balance = get_balance(quote_symbol)
+            nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue']) + float(
+                0 if not quote_symbol_balance else quote_symbol_balance['usdValue'])
+            nav_pct = nav/init_nav*100
+            # cal cf
+            usd_balance = get_balance("USD")
+            cf = float(0 if not usd_balance else usd_balance['free'])
+            # cal grid pos pct
+            grid_pos = grid.iloc[0:-1, -1].to_list()
+            for i in range(len(grid_pos)):
+                if grid_pos[i] == 0:
+                    grid_cpos = i
+                    grid_pos_pct = i / len(grid_pos)*100
+                    break
+
             # check ta signal
             ta = check_ta(market_symbol, '1h', 5, 10)
-            if ta == 1:
-                # check grid above price
-                # add pos together and buy
-                print("รวบซื้อข้างบน")
-            elif ta == 2:
-                # check grid below price (only brought)
-                # sell pos amount
-                print("รวบขายข้างล่าง")
+            if ta > 0:
+                new_cf = 0
+                pos_val = 0
+                if ta == 1:
+                    # check grid above price
+                    for i, r in grid.iterrows():
+                        if (r['price'] >= price) & (r['position'] == 0):
+                            print("here")
+                            # add pos together
+                            pos_val += r['value']
+                            # update grid
+                            grid.iloc[i, -1] = 1
+                        else:
+                            break
+                    # buy
+                    if pos_val != 0:
+                        pos_unit = pos_val/price
+                        client.place_order(
+                            market_symbol, "buy", None, pos_unit, "market")
+                elif ta == 2:
+                    # check grid below price (only brought)
+                    for i, r in grid.iterrows():
+                        if (price > r['price']) & (r['position'] == 1):
+                            # add pos together
+                            pos_val += r['value']
+                            # update grid
+                            grid.iloc[i, -1] = 0
+                        else:
+                            break
+                    # sell
+                    if pos_val != 0:
+                        pos_unit = pos_val/price
+                        # sell to USD
+                        client.place_order(base_symbol+"/USD", "sell",
+                                           None, pos_unit, "market")
+                        # cal new_cf
+                        new_cf = pos_val
+                # update grid.csv
+                grid.to_csv('./public/grid.csv')
+                # update log
+                dt = datetime.datetime.now()
+                add_row(dt.strftime("%d/%m/%Y %H:%M:%S"),
+                        price, nav, nav_pct, new_cf)
 
             # PRINT---
             os.system('cls' if os.name == 'nt' else 'clear')
@@ -155,12 +151,13 @@ async def loop():
             print("-------------------")
             print("[STATUS]")
             print(market_symbol+": "+str(price))
-            print("DD:")
-            print("CF:")
+            print("init_NAV:", round(init_nav, 2))
+            print("NAV:", round(nav, 2), "["+str(round(nav_pct, 2))+"%]")
+            print("grid_pos: "+str(grid_cpos)+"/"+str(len(grid_pos))+" [ "+str(round(grid_pos_pct, 2))+"% ]")
             print("--------------------")
         except Exception as err:
             print(err)
-        await asyncio.sleep(120)
+        await asyncio.sleep(60)
 
 asyncio.run(loop())
 
