@@ -1,9 +1,5 @@
 import os
-from pydoc import cli
-from time import sleep
 import dotenv
-from numpy import multiply
-from urllib.parse import urlencode
 from configparser import ConfigParser
 from datetime import datetime
 import asyncio
