@@ -49,6 +49,11 @@ init_nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue
 # read csv to pandas
 grid = pd.read_csv('./public/grid.csv', sep=',', index_col=0)
 
+# check stablecoin balance amount
+if (int(config['main']['check_funds'])) & (float(0 if not quote_symbol_balance else quote_symbol_balance['usdValue']) < grid.iloc[0:-1, 1].sum()):
+    raise Exception("Insufficient funds!")
+
+
 async def wait():
     bar = [
         " | ",
@@ -117,8 +122,6 @@ async def loop():
                             pos_val += r['value']
                             # update grid
                             grid.iloc[i, -1] = 0
-                        else:
-                            break
                     # sell
                     if pos_val != 0:
                         pos_unit = pos_val/price
