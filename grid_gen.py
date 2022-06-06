@@ -15,7 +15,6 @@ def grid_gap(upper_limit_price: float, lower_limit_price: float, type: str = "pc
                 grid['price'].append(lower_limit_price)
                 break
             grid['price'].append(grid_price)
-
         return grid
     elif type == "fix":  # equally gap
         if 'grid_count' not in kwargs:

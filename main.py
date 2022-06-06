@@ -12,6 +12,7 @@ import json
 from datetime import datetime
 import asyncio
 import datetime
+import time
 import pandas as pd
 from ftx_client import FtxClient
 from tech import check_ta
@@ -19,7 +20,7 @@ from log import *
 
 # load config.ini
 config = ConfigParser()
-config.read('./public/config.ini')
+config.read('./config.ini')
 market_symbol = config['config']['market_symbol']
 sub_account = config["config"]['sub_account']
 
@@ -56,15 +57,15 @@ print(grid)
 
 async def wait():
     bar = [
-        " | sleeping   ",
-        " / sleeping.  ",
-        " ─ sleeping.. ",
-        " \ sleeping...",
+        " | ",
+        " / ",
+        " ─ ",
+        " \ ",
     ]
     i = 0
 
     while True:
-        print(bar[i % len(bar)], end="\r")
+        print(bar[i % len(bar)]+str(int(time.time())), end="\r")
         await asyncio.sleep(0.1)
         i += 1
 
@@ -85,9 +86,6 @@ async def loop():
             nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue']) + float(
                 0 if not quote_symbol_balance else quote_symbol_balance['usdValue'])
             nav_pct = nav/init_nav*100
-            # cal cf
-            usd_balance = get_balance("USD")
-            cf = float(0 if not usd_balance else usd_balance['free'])
             # cal grid pos pct
             grid_pos = grid.iloc[0:-1, -1].to_list()
             for i in range(len(grid_pos)):
@@ -141,6 +139,12 @@ async def loop():
                 dt = datetime.datetime.now()
                 add_row(dt.strftime("%d/%m/%Y %H:%M:%S"),
                         price, nav, nav_pct, new_cf)
+                # cal nav
+                base_symbol_balance = get_balance(base_symbol)
+                quote_symbol_balance = get_balance(quote_symbol)
+                nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue']) + float(
+                    0 if not quote_symbol_balance else quote_symbol_balance['usdValue'])
+                nav_pct = nav/init_nav*100
 
             # PRINT---
             os.system('cls' if os.name == 'nt' else 'clear')
@@ -151,13 +155,19 @@ async def loop():
             print("-------------------")
             print("[STATUS]")
             print(market_symbol+": "+str(price))
-            print("init_NAV:", round(init_nav, 2))
-            print("NAV:", round(nav, 2), "["+str(round(nav_pct, 2))+"%]")
-            print("grid_pos: "+str(grid_cpos)+"/"+str(len(grid_pos))+" [ "+str(round(grid_pos_pct, 2))+"% ]")
-            print("--------------------")
+            print(base_symbol+" balance: " +
+                  str(float(0 if not base_symbol_balance else base_symbol_balance['free'])))
+            print(quote_symbol+" balance: " +
+                  str(float(0 if not quote_symbol_balance else quote_symbol_balance['free'])))
+            print("NAV: "+str(round(nav, 2))+"/" +
+                  str(round(init_nav, 2))+" ["+str(int(nav_pct))+"%]")
+            print("grid_pos: "+str(grid_cpos)+"/"+str(len(grid_pos)) +
+                  " ["+str(int(grid_pos_pct))+"%]")
         except Exception as err:
             print(err)
-        await asyncio.sleep(60)
+        print("--------------------")
+        print("next_wake:", int(time.time())+300)
+        await asyncio.sleep(300)
 
 asyncio.run(loop())
 
