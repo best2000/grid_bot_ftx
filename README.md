@@ -7,7 +7,7 @@
 #build docker image
 docker build -t <name>:<tag> .
 #run container from image, interactive mode, auto delete, mapped host volume to check log data
-docker run -it --rm -v <hostDirectoryName>:/app/public <imageId>
+docker run -it --rm -v <hostDirectoryName>:/app/public <imageId> /bin/bash
 #now you are inside a running container
 ```
 > **you must be inside a container(shell) by now!**
