@@ -46,7 +46,8 @@ init_nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue
 grid = pd.read_csv('./public/grid.csv', sep=',', index_col=0)
 
 # check stablecoin balance amount
-if (int(config['main']['check_funds'])) & (float(0 if not quote_symbol_balance else quote_symbol_balance['usdValue']) < grid.iloc[0:-1, 1].sum()):
+grid_posval_sum = grid['value'].sum()
+if (int(config['main']['check_funds'])) & (float(0 if not quote_symbol_balance else quote_symbol_balance['usdValue']) < grid_posval_sum):
     raise Exception("Insufficient funds!")
 
 
@@ -82,7 +83,7 @@ async def loop():
                 0 if not quote_symbol_balance else quote_symbol_balance['usdValue'])
             nav_pct = nav/init_nav*100
             # cal grid pos pct
-            grid_pos = grid.iloc[0:-1, -1].to_list()
+            grid_pos = grid['position'].to_list()
             for i in range(len(grid_pos)):
                 if grid_pos[i] == 0:
                     grid_cpos = i
@@ -146,6 +147,7 @@ async def loop():
             print("market_symbol:", market_symbol)
             print("sub_account:", sub_account)
             print("grid_zone:", grid.iloc[-1, 0], "=>", grid.iloc[0, 0])
+            print("grid_posval_sum:", grid_posval_sum)
             print("-------------------")
             print("[STATUS]")
             print(market_symbol+": "+str(price))

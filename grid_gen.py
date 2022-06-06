@@ -64,7 +64,7 @@ def fill_buy(grid):
     return grid
 
 def plot(grid):
-    plt.xlim(grid.iloc[0:-1, 1].min()-1, grid.iloc[0:-1, 1].max()+1)
+    plt.xlim(grid.iloc[0:-1, 1].min()-2, grid.iloc[0:-1, 1].max()+2)
     plt.grid(axis='x')
     for i, r in grid.iterrows():
         plt.hlines(y=r['price'], xmin=0, xmax=r['value'])
