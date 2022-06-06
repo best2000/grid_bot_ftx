@@ -26,7 +26,7 @@ nano /app/grid_gen.py
 python /app/grid_gen.py
 ```
 - you can still customize your generated grid at `/app/public/grid.csv` before start runing bot
-- 
+  
 ### 4.Start runing bot
 ```shell
 python /app/main.py

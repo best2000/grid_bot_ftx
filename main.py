@@ -3,12 +3,8 @@ from pydoc import cli
 from time import sleep
 import dotenv
 from numpy import multiply
-import requests
-import hashlib
-import hmac
 from urllib.parse import urlencode
 from configparser import ConfigParser
-import json
 from datetime import datetime
 import asyncio
 import datetime

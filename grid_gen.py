@@ -1,5 +1,4 @@
 import pandas as pd
-from configparser import ConfigParser
 
 def grid_gap(upper_limit_price: float, lower_limit_price: float, type: str = "pct", **kwargs):
     if type == "pct":  # top low frequency gap => bottom high frequency gap
