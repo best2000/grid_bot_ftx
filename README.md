@@ -1,6 +1,6 @@
 # Instructions
 
-### 1.Docker container setup
+### 1. Docker container setup
 - in `Dockerfile` edit ENV with your `API_KEY` and `SECRET_KEY`
 - do these steps
 ```shell
@@ -12,12 +12,12 @@ docker run -it --rm -v <hostDirectoryName>:/app/public <imageId>
 ```
 > **you must be inside a container(shell) by now!**
 
-### 2.Edit config.ini
+### 2. Edit config.ini
 - edit bot parameters at `/app/config.ini`
 ```shell
 nano /app/config.ini
 ```
-### 3.Generate and customize grid.csv
+### 3. Generate and customize grid.csv
 - edit grid generator script at `/app/grid_gen.py` to your grid setup then run the script
 ```shell
 #edit
@@ -32,7 +32,7 @@ python /app/grid_plot.py
 - if you want to visulize your new updated `grid.csv`, you can run plot image script at `/app/grid_plot.py` (it will plot image from `grid.csv`)
 
   
-### 4.Start runing bot
+### 4. Start runing bot
 ```shell
 python /app/main.py
 ```
