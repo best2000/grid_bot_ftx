@@ -145,6 +145,7 @@ async def loop():
             print("[CONFIG]")
             print("market_symbol:", market_symbol)
             print("sub_account:", sub_account)
+            print("grid_price:", grid.iloc[-1, 0], "=>", grid.iloc[0, 0])
             print("-------------------")
             print("[STATUS]")
             print(market_symbol+": "+str(price))
