@@ -17,8 +17,8 @@ from log import *
 # load config.ini
 config = ConfigParser()
 config.read('./config.ini')
-market_symbol = config['config']['market_symbol']
-sub_account = config["config"]['sub_account']
+market_symbol = config['main']['market_symbol']
+sub_account = config["main"]['sub_account']
 
 # load .env
 dotenv.load_dotenv('.env')
@@ -38,7 +38,7 @@ def get_balance(symbol):
 # check market pair
 client.get_single_market(market_symbol)
 
-# started nav
+# init nav
 base_symbol = market_symbol.split('/')[0]
 quote_symbol = market_symbol.split('/')[1]
 base_symbol_balance = get_balance(base_symbol)
@@ -48,8 +48,6 @@ init_nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue
 
 # read csv to pandas
 grid = pd.read_csv('./public/grid.csv', sep=',', index_col=0)
-print(grid)
-
 
 async def wait():
     bar = [
@@ -91,7 +89,8 @@ async def loop():
                     break
 
             # check ta signal
-            ta = check_ta(market_symbol, '1h', 5, 10)
+            ta = check_ta(
+                market_symbol, config['ta']['timeframe'], int(config['ta']['ema1_len']), int(config['ta']['ema2_len']))
             if ta > 0:
                 new_cf = 0
                 pos_val = 0
