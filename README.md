@@ -15,21 +15,22 @@ docker run -it --rm -v <hostDirectoryName>:/app/public <imageId>
 ### 2.Edit config.ini
 - edit bot parameters at `/app/config.ini`
 ```shell
+#inside a container(shell)
 nano /app/config.ini
 ```
-
 ### 3.Generate and customize grid.csv
 - edit grid generator script at `/app/grid_gen.py` to your grid setup then run the script
 ```shell
+#inside a container(shell)
 #edit
 nano /app/grid_gen.py
 #generate
 python /app/grid_gen.py
 ```
 - you can still customize your generated grid at `/app/public/grid.csv` before start runing bot
-
+- 
 ### 4.Start runing bot
- - inside a container(shell)
 ```shell
+#inside a container(shell)
 python /app/main.py
 ```
