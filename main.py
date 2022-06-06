@@ -98,7 +98,6 @@ async def loop():
                     # check grid above price
                     for i, r in grid.iterrows():
                         if (r['price'] >= price) & (r['position'] == 0):
-                            print("here")
                             # add pos together
                             pos_val += r['value']
                             # update grid

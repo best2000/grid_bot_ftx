@@ -24,8 +24,13 @@ nano /app/config.ini
 nano /app/grid_gen.py
 #generate
 python /app/grid_gen.py
+#re plot image from grid.csv
+python /app/grid_plot.py
 ```
+- after generated `grid.csv` there will be `grid.jpg` for you to visulize the grid
 - you can still customize your generated grid at `/app/public/grid.csv` before start runing bot
+- if you want to visulize your new updated `grid.csv`, you can run plot image script at `/app/grid_plot.py` (it will plot image from `grid.csv`)
+
   
 ### 4.Start runing bot
 ```shell

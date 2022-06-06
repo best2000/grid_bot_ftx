@@ -1,4 +1,6 @@
+import matplotlib.pyplot as plt
 import pandas as pd
+
 
 def grid_gap(upper_limit_price: float, lower_limit_price: float, type: str = "pct", **kwargs):
     if type == "pct":  # top low frequency gap => bottom high frequency gap
@@ -25,7 +27,6 @@ def grid_gap(upper_limit_price: float, lower_limit_price: float, type: str = "pc
             price = upper_limit_price-(gap*i)
             grid['price'].append(price)
         return grid
-
 
 def grid_val(grid: dict, type: str, value, **kwargs):
     grid['value'] = []
@@ -56,18 +57,32 @@ def grid_val(grid: dict, type: str, value, **kwargs):
             grid['unit'].append(value/grid['price'][i])
         return grid
 
-
 def fill_buy(grid):
     grid['position'] = []
     for i in range(len(grid['price'])):
         grid['position'].append(0)
     return grid
 
+def plot(grid):
+    plt.xlim(grid.iloc[0:-1, 1].min()-1, grid.iloc[0:-1, 1].max()+1)
+    plt.grid(axis='x')
+    for i, r in grid.iterrows():
+        plt.hlines(y=r['price'], xmin=0, xmax=r['value'])
+    plt.ylabel("Price")
+    plt.xlabel("Value")
+    plt.savefig('./public/grid.jpeg')
+
 # generate grid.csv
-g = grid_gap(100, 10, "pct", gap_pct=5)
-g = grid_val(g, "fix", 10, increase=1)
+#grid gap
+g = grid_gap(2500, 1000, "pct", gap_pct=5)
+#grid position value
+g = grid_val(g, "pyramid", 10, increase=1)
+#fill position status with default value
 g = fill_buy(g)
-print(g)
+#save to grid.csv
 g = pd.DataFrame(g)
 g.to_csv('./public/grid.csv')
-print(g['value'].sum())
+
+print(g)
+print("pos_val_sum:", g['value'].sum())
+plot(g)
