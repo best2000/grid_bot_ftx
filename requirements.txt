@@ -7,3 +7,4 @@ urllib3==1.26.9
 matplotlib==3.5.2
 mplfinance==0.12.9b0
 ccxt==1.84.78
+typer==0.4.1
