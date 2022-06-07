@@ -47,11 +47,11 @@ def grid_gap(lower_limit_price: float, upper_limit_price: float, gtype: str = "p
 
 def grid_val(grid: dict, gtype: str, value, **kwargs):
     grid['value'] = []
-    grid['unit'] = []
+    grid['hold'] = []
     if gtype == "fix":  # fix value grid
         for p in grid['price']:
             grid['value'].append(value)
-            grid['unit'].append(value/p)
+            grid['hold'].append(0)
         return grid
     elif gtype == "pyramid":  # top small pos size => bottom bigger pos size
         if 'increase' not in kwargs:
@@ -61,7 +61,7 @@ def grid_val(grid: dict, gtype: str, value, **kwargs):
             if i > 0:
                 value += increase
             grid['value'].append(value)
-            grid['unit'].append(value/grid['price'][i])
+            grid['hold'].append(0)
         return grid
     elif gtype == "pyramid_invert":  # top small pos size => bottom bigger pos size
         if 'decrease' not in kwargs:
@@ -71,16 +71,8 @@ def grid_val(grid: dict, gtype: str, value, **kwargs):
             if i > 0:
                 value -= decrease
             grid['value'].append(value)
-            grid['unit'].append(value/grid['price'][i])
+            grid['hold'].append(0)
         return grid
-
-
-def fill_buy(grid):
-    grid['position'] = []
-    for i in range(len(grid['price'])):
-        grid['position'].append(0)
-    return grid
-
 
 def plot_img(grid: pd.DataFrame, symbol: str, timeframe: str, limit: int = 2000):
     def get_candles(symbol: str, timeframe: str, limit: int):
@@ -158,7 +150,6 @@ def gen(min_zone: float, max_zone: float, gap_type: str, pos_type: str, pos_val:
     else:
         typer.echo("invalid pos_type")
 
-    g = fill_buy(g)
     # save to grid.csv
     g = pd.DataFrame(g)
     g.to_csv('./public/grid.csv')
