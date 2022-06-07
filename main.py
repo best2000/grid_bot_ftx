@@ -119,7 +119,7 @@ async def loop():
                             pos_val += r['value']
                             # update grid
                             grid.iloc[i, -1] = 0
-                    # sell
+                        # sell
                     if pos_val != 0:
                         pos_unit = pos_val/price
                         # sell to USD
@@ -159,6 +159,8 @@ async def loop():
                   str(round(init_nav, 2))+" ["+str(int(nav_pct))+"%]")
             print("grid_pos: "+str(grid_cpos)+"/"+str(len(grid_pos)) +
                   " ["+str(int(grid_pos_pct))+"%]")
+            print("avg_pos_price:", (init_nav-float(0 if not quote_symbol_balance else quote_symbol_balance['free']))/float(
+                0.1 if not base_symbol_balance else base_symbol_balance['free']))
         except Exception as err:
             print(err)
         print("--------------------")
