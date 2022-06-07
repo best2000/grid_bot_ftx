@@ -93,25 +93,8 @@ async def loop():
             ta = check_ta(market_symbol, config['ta']['timeframe'], int(
                 config['ta']['ema1_len']), int(config['ta']['ema2_len']))
             new_cf = 0
-            # BUY
-            if ta == 1:
-                pos_val = 0
-                # check grid above price
-                for i, r in grid.iterrows():
-                    if (r['price'] >= price) & (r['hold'] == 0):
-                        # add pos together
-                        pos_val += r['value']
-                        # update grid
-                        grid.iloc[i, 2] = r['value']/price
-                    else:
-                        break
-                 # buy
-                if pos_val != 0:
-                    pos_unit = pos_val/price
-                    client.place_order(
-                        market_symbol, "buy", None, pos_unit, "market")
             # SELL
-            elif (int(config['ta']['enable_sell']) == 1) & (ta == 2):
+            if (int(config['ta']['enable_sell']) == 1) & (ta == 2):
                 pos_hold = 0
                 # check grid below price
                 for i, r in grid.iterrows():
@@ -137,6 +120,24 @@ async def loop():
                         # cal new_cf
                         new_cf = r['hold']*price
                         break
+            # BUY
+            if ta == 1:
+                pos_val = 0
+                # check grid above price
+                for i, r in grid.iterrows():
+                    if (r['price'] >= price) & (r['hold'] == 0):
+                        # add pos together
+                        pos_val += r['value']
+                        # update grid
+                        grid.iloc[i, 2] = r['value']/price
+                    else:
+                        break
+                 # buy
+                if pos_val != 0:
+                    pos_unit = pos_val/price
+                    client.place_order(
+                        market_symbol, "buy", None, pos_unit, "market")
+                        
             if new_cf > 0:
                 # update grid.csv
                 grid.to_csv('./public/grid.csv')
