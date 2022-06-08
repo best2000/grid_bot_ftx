@@ -141,17 +141,16 @@ async def loop():
             if new_cf > 0 or pos_val > 0:
                 # update grid.csv
                 grid.to_csv('./public/grid.csv')
-                # update log
-                dt = datetime.datetime.now()
-                add_row(dt.strftime("%d/%m/%Y %H:%M:%S"),
-                        price, nav, nav_pct, new_cf)
-
                 # cal nav
                 base_symbol_balance = get_balance(base_symbol)
                 quote_symbol_balance = get_balance(quote_symbol)
                 nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue']) + float(
                     0 if not quote_symbol_balance else quote_symbol_balance['usdValue'])
                 nav_pct = nav/init_nav*100
+                # update log
+                dt = datetime.datetime.now()
+                add_row(dt.strftime("%d/%m/%Y %H:%M:%S"),
+                        price, nav, nav_pct, new_cf)
 
             # PRINT---
             os.system('cls' if os.name == 'nt' else 'clear')
