@@ -92,8 +92,8 @@ async def loop():
             # check ta signal
             ta = check_ta(market_symbol, config['ta']['timeframe'], int(
                 config['ta']['ema1_len']), int(config['ta']['ema2_len']))
-            new_cf = 0
             # SELL CHECK
+            new_cf = 0
             if int(config['ta']['enable_sell']) == 1 and ta == 2:
                 pos_hold = 0
                 # check grid below price
@@ -121,8 +121,8 @@ async def loop():
                         new_cf = r['hold']*price
                         break
             # BUY CHECK
+            pos_val = 0
             if ta == 1:
-                pos_val = 0
                 # check grid above price
                 for i, r in grid.iterrows():
                     if r['price'] >= price and r['hold'] == 0:
@@ -138,7 +138,7 @@ async def loop():
                     client.place_order(
                         market_symbol, "buy", None, pos_unit, "market")
 
-            if new_cf > 0:
+            if new_cf > 0 or pos_val > 0:
                 # update grid.csv
                 grid.to_csv('./public/grid.csv')
                 # update log
