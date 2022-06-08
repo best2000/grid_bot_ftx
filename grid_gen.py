@@ -1,9 +1,5 @@
-from configparser import NoOptionError
-from msilib import type_binary
 import typer
 import mplfinance as mpf
-import dotenv
-import os
 import ccxt
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -74,14 +70,10 @@ def grid_val(grid: dict, gtype: str, value, **kwargs):
             grid['hold'].append(0)
         return grid
 
+
 def plot_img(grid: pd.DataFrame, symbol: str, timeframe: str, limit: int = 2000):
     def get_candles(symbol: str, timeframe: str, limit: int):
-        # load .env
-        dotenv.load_dotenv('.env')
-        apiKey = os.environ.get("API_KEY")
-        secret = os.environ.get("SECRET_KEY")
-        exchange = ccxt.ftx(
-            {'apiKey': apiKey, 'secret': secret, 'enableRateLimit': True})
+        exchange = ccxt.binance({'enableRateLimit': True})
 
         candles = exchange.fetch_ohlcv(
             symbol, timeframe=timeframe, limit=limit)
@@ -165,7 +157,7 @@ def gen(min_zone: float, max_zone: float, gap_type: str, pos_type: str, pos_val:
     # log
     typer.echo(g)
     typer.echo("val_sum: " + str(g['value'].sum()))
-    typer.echo("plz check ./public/grid.csv")
+    typer.echo("save as ./public/grid.csv")
 
 
 @cli.command()
@@ -174,6 +166,7 @@ def plot(market_symbol: str, timeframe: str, limit: int):
     g = pd.read_csv('./public/grid.csv', sep=',', index_col=0)
     # plot fig
     plot_img(g, market_symbol, timeframe, limit)
+    typer.echo("save as ./public/grid+candles.csv")
 
 
 if __name__ == '__main__':
