@@ -93,12 +93,12 @@ async def loop():
             ta = check_ta(market_symbol, config['ta']['timeframe'], int(
                 config['ta']['ema1_len']), int(config['ta']['ema2_len']))
             new_cf = 0
-            # SELL
-            if (int(config['ta']['enable_sell']) == 1) & (ta == 2):
+            # SELL CHECK
+            if int(config['ta']['enable_sell']) == 1 and ta == 2:
                 pos_hold = 0
                 # check grid below price
                 for i, r in grid.iterrows():
-                    if (price > r['price']) & (r['hold'] > 0):
+                    if r['hold'] > 0 and price > r['price']:
                         # add pos together
                         pos_hold += r['hold']
                         # update grid
@@ -110,9 +110,9 @@ async def loop():
                     # cal new_cf
                     new_cf = pos_hold*price
             else:  # regular tp
-                # check grid below price
+                # check grid below price 1 grid range
                 for i, r in grid.iterrows():
-                    if (i != 0) & (price >= grid.iloc[i-1, 0]) & (r['hold'] > 0):
+                    if i != 0 and r['hold'] > 0 and price >= grid.iloc[i-1, 0]:
                         client.place_order(base_symbol+"/USD", "sell",
                                            None, r['hold'], "market")
                         # update grid
@@ -120,12 +120,12 @@ async def loop():
                         # cal new_cf
                         new_cf = r['hold']*price
                         break
-            # BUY
+            # BUY CHECK
             if ta == 1:
                 pos_val = 0
                 # check grid above price
                 for i, r in grid.iterrows():
-                    if (r['price'] >= price) & (r['hold'] == 0):
+                    if r['price'] >= price and r['hold'] == 0:
                         # add pos together
                         pos_val += r['value']
                         # update grid
@@ -137,7 +137,7 @@ async def loop():
                     pos_unit = pos_val/price
                     client.place_order(
                         market_symbol, "buy", None, pos_unit, "market")
-                        
+
             if new_cf > 0:
                 # update grid.csv
                 grid.to_csv('./public/grid.csv')
