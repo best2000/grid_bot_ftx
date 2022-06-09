@@ -105,6 +105,9 @@ def plot_img(grid: pd.DataFrame, symbol: str, timeframe: str, limit: int = 2000)
     mpf.plot(df, type='line', volume=False,
              title="\n\n\nGrid ("+symbol+" "+timeframe+")", style=s, hlines=hl, savefig='./public/grid+candles.png')
 
+def fill_hold_price(grid:pd.DataFrame):
+    grid['hold_price'] = pd.Series([-1] * len(grid['price']))
+    return grid
 
 # CLI
 cli = typer.Typer()
@@ -144,6 +147,7 @@ def gen(min_zone: float, max_zone: float, gap_type: str, pos_type: str, pos_val:
 
     # save to grid.csv
     g = pd.DataFrame(g)
+    g = fill_hold_price(g)
     g.to_csv('./public/grid.csv')
     # plot grid val
     plt.xlim(g.iloc[0:-1, 1].min()-2, g.iloc[0:-1, 1].max()+2)

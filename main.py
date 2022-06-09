@@ -9,6 +9,7 @@ import pandas as pd
 from ftx_client import FtxClient
 from tech import check_ta
 from log import *
+import math
 
 # load config.ini
 config = ConfigParser()
@@ -111,9 +112,9 @@ async def loop():
                     grid_cpos = i
                     grid_pos_pct = i / len(grid_pos)*100
                     break
-
             # TRADE
             t = 0
+            cf = 0
 
             # check ta signal
             ta = check_ta(market_symbol, config['ta']['timeframe'], int(
@@ -124,11 +125,14 @@ async def loop():
                 pos_hold = 0
                 # check grid below price
                 for i, r in grid.iterrows():
-                    if r['hold'] > 0 and price > r['price']:
+                    if r['hold'] > 0 and r['hold_price'] != -1 and price > r['price']:
                         # add pos together
                         pos_hold += r['hold']
+                        # cf cal
+                        cf += (price*r['hold'])-(r['hold_price']*r['hold'])
                         # update grid
                         grid.iloc[i, 2] = 0
+                        grid.iloc[i, 3] = -1
                     # sell
                 if pos_hold != 0:
                     instant_limit_order(market_symbol, "sell", pos_hold)
@@ -136,11 +140,13 @@ async def loop():
             else:  # regular tp
                 # check grid below price 1 grid range
                 for i, r in grid.iterrows():
-                    if i != 0 and r['hold'] > 0 and price >= grid.iloc[i-1, 0]:
+                    if i != 0 and r['hold'] > 0 and r['hold_price'] != -1 and price >= grid.iloc[i-1, 0]:
                         instant_limit_order(market_symbol, "sell", pos_hold)
+                        t = 1
+                        cf = (price*r['hold'])-(r['hold_price']*r['hold'])
                         # update grid
                         grid.iloc[i, 2] = 0
-                        t = 1
+                        grid.iloc[i, 3] = -1
                         break
 
             # BUY CHECK
@@ -148,11 +154,12 @@ async def loop():
             if ta == 1:
                 # check grid above price
                 for i, r in grid.iterrows():
-                    if r['price'] >= market_info['ask'] and r['hold'] == 0:
+                    if r['price'] >= market_info['ask'] and r['hold'] == 0 and r['hold_price'] == -1:
                         # add pos together
                         pos_val += r['value']
                         # update grid
                         grid.iloc[i, 2] = r['value']/market_info['ask']
+                        grid.iloc[i, 3] = market_info['ask']
                  # buy
                 if pos_val != 0:
                     pos_unit = pos_val/market_info['ask']
@@ -172,7 +179,10 @@ async def loop():
                 # update log
                 dt = datetime.datetime.now()
                 add_row(dt.strftime("%d/%m/%Y %H:%M:%S"),
-                        price, nav, nav_pct)
+                        price, nav, nav_pct, cf)
+                if cf > 0:
+                    client.subaccount_transfer(
+                        quote_symbol, math.floor(cf), sub_account, "main")
 
             # PRINT---
             os.system('cls' if os.name == 'nt' else 'clear')
