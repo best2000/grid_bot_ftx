@@ -31,6 +31,29 @@ def get_balance(symbol):
             return a
 
 
+def instant_limit_order(market_symbol: str, type: str, size: float):
+    ob = client.get_orderbook(market_symbol, 5)
+    if type == "sell":
+        for o in ob['bids']:
+            bid = o[0]
+            amount = o[1]
+            if size < amount:
+                res = client.place_order(
+                    market_symbol, "sell", bid, size, "limit")
+                if res['status'] == "new":
+                    break
+
+    elif type == "buy":
+        for o in ob['asks']:
+            ask = o[0]
+            amount = o[1]
+            if size < amount:
+                res = client.place_order(
+                    market_symbol, "buy", ask, size, "limit")
+                if res['status'] == "new":
+                    break
+
+
 # check market pair
 client.get_single_market(market_symbol)
 
@@ -89,11 +112,14 @@ async def loop():
                     grid_pos_pct = i / len(grid_pos)*100
                     break
 
+            # TRADE
+            t = 0
+
             # check ta signal
             ta = check_ta(market_symbol, config['ta']['timeframe'], int(
                 config['ta']['ema1_len']), int(config['ta']['ema2_len']))
+
             # SELL CHECK
-            new_cf = 0
             if int(config['ta']['enable_sell']) == 1 and ta == 2:
                 pos_hold = 0
                 # check grid below price
@@ -105,40 +131,36 @@ async def loop():
                         grid.iloc[i, 2] = 0
                     # sell
                 if pos_hold != 0:
-                    client.place_order(base_symbol+"/USD", "sell",
-                                       None, pos_hold, "market")
-                    # cal new_cf
-                    new_cf = pos_hold*price
+                    instant_limit_order(market_symbol, "sell", pos_hold)
+                    t = 1
             else:  # regular tp
                 # check grid below price 1 grid range
                 for i, r in grid.iterrows():
                     if i != 0 and r['hold'] > 0 and price >= grid.iloc[i-1, 0]:
-                        client.place_order(base_symbol+"/USD", "sell",
-                                           None, r['hold'], "market")
+                        instant_limit_order(market_symbol, "sell", pos_hold)
                         # update grid
                         grid.iloc[i, 2] = 0
-                        # cal new_cf
-                        new_cf = r['hold']*price
+                        t = 1
                         break
+
             # BUY CHECK
             pos_val = 0
             if ta == 1:
                 # check grid above price
                 for i, r in grid.iterrows():
-                    if r['price'] >= price and r['hold'] == 0:
+                    if r['price'] >= market_info['ask'] and r['hold'] == 0:
                         # add pos together
                         pos_val += r['value']
                         # update grid
-                        grid.iloc[i, 2] = r['value']/price
-                    else:
-                        break
+                        grid.iloc[i, 2] = r['value']/market_info['ask']
                  # buy
                 if pos_val != 0:
-                    pos_unit = pos_val/price
-                    client.place_order(
-                        market_symbol, "buy", None, pos_unit, "market")
+                    pos_unit = pos_val/market_info['ask']
+                    instant_limit_order(market_symbol, "buy", pos_unit)
+                    t = 1
 
-            if new_cf > 0 or pos_val > 0:
+            # LOG
+            if t == 1:
                 # update grid.csv
                 grid.to_csv('./public/grid.csv')
                 # cal nav
@@ -150,7 +172,7 @@ async def loop():
                 # update log
                 dt = datetime.datetime.now()
                 add_row(dt.strftime("%d/%m/%Y %H:%M:%S"),
-                        price, nav, nav_pct, new_cf)
+                        price, nav, nav_pct)
 
             # PRINT---
             os.system('cls' if os.name == 'nt' else 'clear')
@@ -163,7 +185,7 @@ async def loop():
             print("grid_posval_sum:", grid_posval_sum)
             print("-------------------")
             print("[STATUS]")
-            print(market_symbol+": "+str(price))
+            print("{}: {}".format(market_symbol, price))
             print(base_symbol+" balance: " +
                   str(float(0 if not base_symbol_balance else base_symbol_balance['free'])))
             print(quote_symbol+" balance: " +
@@ -172,12 +194,9 @@ async def loop():
                   str(round(init_nav, 2))+" ["+str(int(nav_pct))+"%]")
             print("grid_pos: "+str(grid_cpos)+"/"+str(len(grid_pos)) +
                   " ["+str(int(grid_pos_pct))+"%]")
-            print("avg_pos_price:", round((init_nav-float(0 if not quote_symbol_balance else quote_symbol_balance['free']))/float(
-                0.1 if not base_symbol_balance else base_symbol_balance['free']), 2))
         except Exception as err:
             print(err)
         print("--------------------")
-        print("next_wake:", int(time.time())+60)
         await asyncio.sleep(60)
 
 asyncio.run(loop())
