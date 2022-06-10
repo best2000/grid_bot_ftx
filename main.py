@@ -6,7 +6,7 @@ import asyncio
 import datetime
 import time
 import pandas as pd
-from ftx_client import FtxClient
+from ftx_client import FtxClient, instant_limit_order
 from tech import check_ta
 from log import *
 import math
@@ -19,8 +19,8 @@ sub_account = config["main"]['sub_account']
 
 # load .env
 dotenv.load_dotenv('.env')
-api_key = os.environ.get("API_KEY")
-secret_key = os.environ.get("SECRET_KEY")
+api_key = os.environ.get("API_FTX")
+secret_key = os.environ.get("SECRET_FTX")
 
 client = FtxClient(api_key,
                    secret_key, sub_account)
@@ -30,29 +30,6 @@ def get_balance(symbol):
     for a in client.get_balances():
         if a['coin'] == symbol:
             return a
-
-
-def instant_limit_order(market_symbol: str, type: str, size: float):
-    ob = client.get_orderbook(market_symbol, 5)
-    if type == "sell":
-        for o in ob['bids']:
-            bid = o[0]
-            amount = o[1]
-            if size < amount:
-                res = client.place_order(
-                    market_symbol, "sell", bid, size, "limit")
-                if res['status'] == "new":
-                    break
-
-    elif type == "buy":
-        for o in ob['asks']:
-            ask = o[0]
-            amount = o[1]
-            if size < amount:
-                res = client.place_order(
-                    market_symbol, "buy", ask, size, "limit")
-                if res['status'] == "new":
-                    break
 
 
 # check market pair
@@ -135,13 +112,15 @@ async def loop():
                         grid.iloc[i, 3] = -1
                     # sell
                 if pos_hold != 0:
-                    instant_limit_order(market_symbol, "sell", pos_hold)
+                    instant_limit_order(
+                        client, market_symbol, "sell", pos_hold)
                     t = 1
             else:  # regular tp
                 # check grid below price 1 grid range
                 for i, r in grid.iterrows():
                     if i != 0 and r['hold'] > 0 and r['hold_price'] != -1 and price >= grid.iloc[i-1, 0]:
-                        instant_limit_order(market_symbol, "sell", pos_hold)
+                        instant_limit_order(
+                            client, market_symbol, "sell", pos_hold)
                         t = 1
                         cf = (price*r['hold'])-(r['hold_price']*r['hold'])
                         # update grid
@@ -163,7 +142,7 @@ async def loop():
                  # buy
                 if pos_val != 0:
                     pos_unit = pos_val/market_info['ask']
-                    instant_limit_order(market_symbol, "buy", pos_unit)
+                    instant_limit_order(client, market_symbol, "buy", pos_unit)
                     t = 1
 
             # LOG

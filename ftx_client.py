@@ -361,3 +361,26 @@ class FtxClient:
 
     def get_latency_stats(self, days: int = 1, subaccount_nickname: str = None) -> Dict:
         return self._get('stats/latency_stats', {'days': days, 'subaccount_nickname': subaccount_nickname})
+
+
+def instant_limit_order(client: FtxClient, market_symbol: str, type: str, size: float):
+    ob = client.get_orderbook(market_symbol, 5)
+    if type == "sell":
+        for o in ob['bids']:
+            bid = o[0]
+            amount = o[1]
+            if size < amount:
+                res = client.place_order(
+                    market_symbol, "sell", bid, size, "limit")
+                if res['status'] == "new":
+                    break
+
+    elif type == "buy":
+        for o in ob['asks']:
+            ask = o[0]
+            amount = o[1]
+            if size < amount:
+                res = client.place_order(
+                    market_symbol, "buy", ask, size, "limit")
+                if res['status'] == "new":
+                    break

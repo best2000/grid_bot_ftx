@@ -1,7 +1,9 @@
 FROM python:3.10.4-slim
 
-ENV API_KEY=xxx
-ENV SECRET_KEY=xxx
+ENV API_FTX=xxx
+ENV SECRET_FTX=xxx
+ENV API_DERIBIT=xxx
+ENV SECRET_DERIBIT=xxx
 
 WORKDIR /app
 
