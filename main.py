@@ -189,6 +189,3 @@ async def loop():
         await asyncio.sleep(60)
 
 asyncio.run(loop())
-
-# profit compound/keep, technical รวบโซน
-# net ass val (NAV), dd, cash flow per ..., cumulative
