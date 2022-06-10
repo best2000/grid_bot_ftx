@@ -89,16 +89,15 @@ async def loop():
                     grid_cpos = i
                     grid_pos_pct = i / len(grid_pos)*100
                     break
+                
             # TRADE
             t = 0
             cf = 0
-
             # check ta signal
             ta = check_ta(market_symbol, config['ta']['timeframe'], int(
                 config['ta']['ema1_len']), int(config['ta']['ema2_len']))
-
             # SELL CHECK
-            if int(config['ta']['enable_sell']) == 1 and ta == 2:
+            if ta == 2:
                 pos_hold = 0
                 # check grid below price
                 for i, r in grid.iterrows():
@@ -115,22 +114,8 @@ async def loop():
                     instant_limit_order(
                         client, market_symbol, "sell", pos_hold)
                     t = 1
-            else:  # regular tp
-                # check grid below price 1 grid range
-                for i, r in grid.iterrows():
-                    if i != 0 and r['hold'] > 0 and r['hold_price'] != -1 and price >= grid.iloc[i-1, 0]:
-                        instant_limit_order(
-                            client, market_symbol, "sell", pos_hold)
-                        t = 1
-                        cf = (price*r['hold'])-(r['hold_price']*r['hold'])
-                        # update grid
-                        grid.iloc[i, 2] = 0
-                        grid.iloc[i, 3] = -1
-                        break
-
-            # BUY CHECK
-            pos_val = 0
-            if ta == 1:
+            elif ta == 1:  # BUY CHECK
+                pos_val = 0
                 # check grid above price
                 for i, r in grid.iterrows():
                     if r['price'] >= market_info['ask'] and r['hold'] == 0 and r['hold_price'] == -1:
@@ -144,7 +129,7 @@ async def loop():
                     pos_unit = pos_val/market_info['ask']
                     instant_limit_order(client, market_symbol, "buy", pos_unit)
                     t = 1
-
+                    
             # LOG
             if t == 1:
                 # update grid.csv
@@ -189,3 +174,18 @@ async def loop():
         await asyncio.sleep(60)
 
 asyncio.run(loop())
+
+"""
+            else:  # regular tp
+                # check grid below price 1 grid range
+                for i, r in grid.iterrows():
+                    if i != 0 and r['hold'] > 0 and r['hold_price'] != -1 and price >= grid.iloc[i-1, 0]:
+                        instant_limit_order(
+                            client, market_symbol, "sell", pos_hold)
+                        t = 1
+                        cf = (price*r['hold'])-(r['hold_price']*r['hold'])
+                        # update grid
+                        grid.iloc[i, 2] = 0
+                        grid.iloc[i, 3] = -1
+                        break
+"""
