@@ -1,7 +1,6 @@
 .env
 __pycache__/
 public/check_ta.csv
-public/grid.csv
 public/grid.jpeg
 public/grid+candles.png
 public/log.csv
