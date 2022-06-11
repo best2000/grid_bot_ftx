@@ -285,6 +285,9 @@ class FtxClient:
     def get_trigger_order_history(self, market: str = None) -> List[dict]:
         return self._get('conditional_orders/history', {'market': market})
 
+    def get_order_status(self, order_id) -> dict:
+        return self._get(f'orders/{order_id}')
+
     def get_staking_balances(self) -> List[dict]:
         return self._get('staking/balances')
 
@@ -372,8 +375,13 @@ def instant_limit_order(client: FtxClient, market_symbol: str, type: str, size: 
             if size < amount:
                 res = client.place_order(
                     market_symbol, "sell", bid, size, "limit")
-                if res['status'] == "new":
-                    break
+                if 'id' in res:
+                    time.sleep(0.5)
+                    ord = client.get_order_status(res['id'])
+                    if ord['status'] == 'closed':
+                        break
+                    else:
+                        client.cancel_order(res['id'])
 
     elif type == "buy":
         for o in ob['asks']:
@@ -382,5 +390,10 @@ def instant_limit_order(client: FtxClient, market_symbol: str, type: str, size: 
             if size < amount:
                 res = client.place_order(
                     market_symbol, "buy", ask, size, "limit")
-                if res['status'] == "new":
-                    break
+                if 'id' in res:
+                    time.sleep(0.5)
+                    ord = client.get_order_status(res['id'])
+                    if ord['status'] == 'closed':
+                        break
+                    else:
+                        client.cancel_order(res['id'])

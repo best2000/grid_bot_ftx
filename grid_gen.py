@@ -73,7 +73,7 @@ def grid_val(grid: dict, gtype: str, value, **kwargs):
 
 def plot_img(grid: pd.DataFrame, symbol: str, timeframe: str, limit: int = 2000):
     def get_candles(symbol: str, timeframe: str, limit: int):
-        exchange = ccxt.binance({'enableRateLimit': True})
+        exchange = ccxt.ftx({'enableRateLimit': True})
 
         candles = exchange.fetch_ohlcv(
             symbol, timeframe=timeframe, limit=limit)
