@@ -80,7 +80,7 @@ while True:
         ta = check_ta(market_symbol, config['ta']['timeframe'], int(
             config['ta']['ema1_len']), int(config['ta']['ema2_len']))
         # SELL CHECK
-        if ta == 2:
+        if int(config['ta']['enable_sell']) == 1 and ta == 2:
             pos_hold = 0
             # check grid below price
             for i, r in grid.iterrows():
@@ -97,7 +97,20 @@ while True:
                 instant_limit_order(
                     client, market_symbol, "sell", pos_hold)
                 t = 1
-        elif ta == 1:  # BUY CHECK
+        else:  # regular tp
+            # check grid below price 1 grid range
+            for i, r in grid.iterrows():
+                if i != 0 and r['hold'] > 0 and r['hold_price'] != -1 and price >= grid.iloc[i-1, 0]:
+                    instant_limit_order(
+                        client, market_symbol, "sell", pos_hold)
+                    t = 1
+                    cf = (price*r['hold'])-(r['hold_price']*r['hold'])
+                    # update grid
+                    grid.iloc[i, 2] = 0
+                    grid.iloc[i, 3] = -1
+                    break
+                        
+        if ta == 1:  # BUY CHECK
             pos_val = 0
             # check grid above price
             for i, r in grid.iterrows():
@@ -154,18 +167,3 @@ while True:
     except Exception as err:
         print(err)
     print("--------------------")
-
-"""
-            else:  # regular tp
-                # check grid below price 1 grid range
-                for i, r in grid.iterrows():
-                    if i != 0 and r['hold'] > 0 and r['hold_price'] != -1 and price >= grid.iloc[i-1, 0]:
-                        instant_limit_order(
-                            client, market_symbol, "sell", pos_hold)
-                        t = 1
-                        cf = (price*r['hold'])-(r['hold_price']*r['hold'])
-                        # update grid
-                        grid.iloc[i, 2] = 0
-                        grid.iloc[i, 3] = -1
-                        break
-"""
