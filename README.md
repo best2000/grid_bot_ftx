@@ -18,10 +18,10 @@ docker run -it --rm -v <hostDirectoryName>:/app/public <imageId> /bin/bash
 
 ### 2. Edit config.ini
 
--   edit bot parameters at `/app/config.ini`
+-   edit bot parameters at `/app/public/config.ini`
 
 ```shell
-nano /app/config.ini
+nano /app/public/config.ini
 ```
 
 ### 3. Generate and customize grid.csv
