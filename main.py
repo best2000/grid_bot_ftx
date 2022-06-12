@@ -1,8 +1,8 @@
 import os
+import sys
 import dotenv
 from configparser import ConfigParser
 from datetime import datetime
-import asyncio
 import datetime
 import time
 import pandas as pd
@@ -13,7 +13,7 @@ import math
 
 # load config.ini
 config = ConfigParser()
-config.read('./config.ini')
+config.read('./public/config.ini')
 market_symbol = config['main']['market_symbol']
 sub_account = config["main"]['sub_account']
 
@@ -53,7 +53,9 @@ if (int(config['main']['check_funds'])) & (float(0 if not quote_symbol_balance e
 
 
 while True:
+    avg_buy_price = -1
     try:
+        config.read('./public/config.ini')
         # check exhange pair and price
         market_info = client.get_single_market(market_symbol)
         if market_info['enabled'] == False:
@@ -73,14 +75,39 @@ while True:
                 grid_pos_pct = i / len(grid_pos)*100
                 break
 
+        # check stoploss
+        if price < float(config['grid']['stop_loss']):
+            # stop grid, sell all
+            instant_limit_order(client, market_symbol, "sell",
+                                float(base_symbol_balance['free']))
+            sys.exit()
+
         # TRADE
         t = 0
         cf = 0
         # check ta signal
-        ta = check_ta(market_symbol, config['ta']['timeframe'], int(
-            config['ta']['ema1_len']), int(config['ta']['ema2_len']))
+        ta_buy = check_ta(market_symbol, config['ta']['timeframe_buy'], int(
+            config['ta']['ema1_len_buy']), int(config['ta']['ema2_len_buy']), name="buy")
+        ta_sell = check_ta(market_symbol, config['ta']['timeframe_sell'], int(
+            config['ta']['ema1_len_sell']), int(config['ta']['ema2_len_sell']), name="sell")
+        # BUY CHECK
+        if ta_buy == 1:
+            pos_val = 0
+            # check grid above price
+            for i, r in grid.iterrows():
+                if r['price'] >= market_info['ask'] and r['hold'] == 0 and r['hold_price'] == -1:
+                    # add pos together
+                    pos_val += r['value']
+                    # update grid
+                    grid.iloc[i, 2] = r['value']/market_info['ask']
+                    grid.iloc[i, 3] = market_info['ask']
+             # buy
+            if pos_val != 0:
+                pos_unit = pos_val/market_info['ask']
+                instant_limit_order(client, market_symbol, "buy", pos_unit)
+                t = 1
         # SELL CHECK
-        if ta == 2:
+        if ta_sell == 2:
             pos_hold = 0
             # check grid below price
             for i, r in grid.iterrows():
@@ -97,21 +124,6 @@ while True:
                 instant_limit_order(
                     client, market_symbol, "sell", pos_hold)
                 t = 1
-        elif ta == 1:  # BUY CHECK
-            pos_val = 0
-            # check grid above price
-            for i, r in grid.iterrows():
-                if r['price'] >= market_info['ask'] and r['hold'] == 0 and r['hold_price'] == -1:
-                    # add pos together
-                    pos_val += r['value']
-                    # update grid
-                    grid.iloc[i, 2] = r['value']/market_info['ask']
-                    grid.iloc[i, 3] = market_info['ask']
-             # buy
-            if pos_val != 0:
-                pos_unit = pos_val/market_info['ask']
-                instant_limit_order(client, market_symbol, "buy", pos_unit)
-                t = 1
 
         # LOG
         if t == 1:
@@ -123,10 +135,13 @@ while True:
             nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue']) + float(
                 0 if not quote_symbol_balance else quote_symbol_balance['usdValue'])
             nav_pct = nav/init_nav*100
+            # avg buy price
+            avg_buy_price = round((init_nav - float(0 if not quote_symbol_balance else quote_symbol_balance['free']))/float(
+                -1 if not base_symbol_balance else base_symbol_balance['free']), 2)
             # update log
             dt = datetime.datetime.now()
             add_row(dt.strftime("%d/%m/%Y %H:%M:%S"),
-                    price, nav, nav_pct, cf)
+                    price, nav, nav_pct, avg_buy_price, cf)
             if cf > 0:
                 client.subaccount_transfer(
                     quote_symbol, math.floor(cf), sub_account, "main")
@@ -139,18 +154,20 @@ while True:
         print("sub_account:", sub_account)
         print("grid_zone:", round(
             grid.iloc[-1, 0], 2), "=>", grid.iloc[0, 0])
-        print("grid_posval_sum:", grid_posval_sum)
+        print("grid_posval_sum:", round(grid_posval_sum, 2))
         print("-------------------")
         print("[STATUS]")
         print("{}: {}".format(market_symbol, price))
         print(base_symbol+" balance: " +
-              str(float(0 if not base_symbol_balance else base_symbol_balance['free'])))
+              str(round(float(0 if not base_symbol_balance else base_symbol_balance['free']), 4)))
         print(quote_symbol+" balance: " +
-              str(float(0 if not quote_symbol_balance else quote_symbol_balance['free'])))
+              str(round(float(0 if not quote_symbol_balance else quote_symbol_balance['free']), 2)))
         print("NAV: "+str(round(nav, 2))+"/" +
               str(round(init_nav, 2))+" ["+str(int(nav_pct))+"%]")
         print("grid_pos: "+str(grid_cpos)+"/"+str(len(grid_pos)) +
               " ["+str(int(grid_pos_pct))+"%]")
+        print("avg_buy_price:", avg_buy_price)
     except Exception as err:
         print(err)
     print("--------------------")
+    time.sleep(60)
