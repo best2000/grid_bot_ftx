@@ -51,9 +51,8 @@ grid_posval_sum = grid['value'].sum()
 if (int(config['main']['check_funds'])) & (float(0 if not quote_symbol_balance else quote_symbol_balance['usdValue']) < grid_posval_sum):
     raise Exception("Insufficient funds!")
 
-
+avg_buy_price = -1
 while True:
-    avg_buy_price = -1
     try:
         config.read('./public/config.ini')
         # check exhange pair and price
