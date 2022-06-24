@@ -16,6 +16,8 @@ config = ConfigParser()
 config.read('./public/config.ini')
 market_symbol = config['main']['market_symbol']
 sub_account = config["main"]['sub_account']
+init_max_zone = config["grid"]['init_max_zone']
+init_min_zone = config["grid"]['init_min_zone']
 
 # load .env
 dotenv.load_dotenv('.env')
@@ -45,10 +47,14 @@ init_nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue
 
 # read csv to pandas
 grid = pd.read_csv('./public/grid.csv', sep=',', index_col=0)
+grid_trading = grid.query(
+    'price >= {} & price <= {}'.format(init_min_zone, init_max_zone))
+grid_trading.index = grid_trading.index - grid_trading.index[0]
+print(grid_trading)
 
 # check stablecoin balance amount
-grid_posval_sum = grid['value'].sum()
-if (int(config['main']['check_funds'])) & (float(0 if not quote_symbol_balance else quote_symbol_balance['usdValue']) < grid_posval_sum):
+grid_init_posval_sum = grid_trading['value'].sum()
+if (int(config['main']['check_funds'])) & (float(0 if not quote_symbol_balance else quote_symbol_balance['usdValue']) < grid_init_posval_sum):
     raise Exception("Insufficient funds!")
 
 avg_buy_price = -1
@@ -66,15 +72,25 @@ while True:
         nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue']) + float(
             0 if not quote_symbol_balance else quote_symbol_balance['usdValue'])
         nav_pct = nav/init_nav*100
-        # cal grid pos pct
-        grid_pos = grid['hold'].to_list()
-        for i in range(len(grid_pos)):
-            if grid_pos[i] == 0:
-                grid_cpos = i
-                grid_pos_pct = i / len(grid_pos)*100
-                break
 
-        # check stoploss
+        # check trailing up
+        if int(config['grid']['trailing_up']) == 1:
+            # trail up
+            if price > grid_trading.iloc[0, 0] and price < grid.iloc[0, 0]:
+                grid_trading = grid_trading.iloc[0:-1]
+                new_grid = []
+                _grid = grid.query(
+                    'price > {}'.format(grid_trading.iloc[0, 0]))
+                for i in range(len(_grid.index)-1, -1, -1):
+                    if _grid.iloc[i, 0] < price:
+                        new_grid.append(_grid.iloc[i].to_list())
+                if len(new_grid) > 0:
+                    for g in new_grid:
+                        grid_trading.loc[-1] = g  # adding a row
+                        grid_trading.index = grid_trading.index + 1  # shifting index
+                        grid_trading.sort_index(inplace=True)
+
+            # check stoploss
         if price < float(config['grid']['stop_loss']):
             # stop grid, sell all
             instant_limit_order(client, market_symbol, "sell",
@@ -93,13 +109,13 @@ while True:
         if ta_buy == 1:
             pos_val = 0
             # check grid above price
-            for i, r in grid.iterrows():
+            for i, r in grid_trading.iterrows():
                 if r['price'] >= market_info['ask'] and r['hold'] == 0 and r['hold_price'] == -1:
                     # add pos together
                     pos_val += r['value']
                     # update grid
-                    grid.iloc[i, 2] = r['value']/market_info['ask']
-                    grid.iloc[i, 3] = market_info['ask']
+                    grid_trading.iloc[i, 2] = r['value']/market_info['ask']
+                    grid_trading.iloc[i, 3] = market_info['ask']
              # buy
             if pos_val != 0:
                 pos_unit = pos_val/market_info['ask']
@@ -109,15 +125,15 @@ while True:
         if ta_sell == 2:
             pos_hold = 0
             # check grid below price
-            for i, r in grid.iterrows():
+            for i, r in grid_trading.iterrows():
                 if r['hold'] > 0 and r['hold_price'] != -1 and price > r['price']:
                     # add pos together
                     pos_hold += r['hold']
                     # cf cal
                     cf += (price*r['hold'])-(r['hold_price']*r['hold'])
                     # update grid
-                    grid.iloc[i, 2] = 0
-                    grid.iloc[i, 3] = -1
+                    grid_trading.iloc[i, 2] = 0
+                    grid_trading.iloc[i, 3] = -1
                 # sell
             if pos_hold != 0:
                 instant_limit_order(
@@ -127,7 +143,7 @@ while True:
         # LOG
         if t == 1:
             # update grid.csv
-            grid.to_csv('./public/grid.csv')
+            grid_trading.to_csv('./public/grid_trading.csv')
             # cal nav
             base_symbol_balance = get_balance(base_symbol)
             quote_symbol_balance = get_balance(quote_symbol)
@@ -146,14 +162,14 @@ while True:
                     quote_symbol, math.floor(cf), sub_account, "main")
 
         # PRINT---
-        os.system('cls' if os.name == 'nt' else 'clear')
+        #os.system('cls' if os.name == 'nt' else 'clear')
         print("--------------------")
         print("[CONFIG]")
         print("market_symbol:", market_symbol)
         print("sub_account:", sub_account)
-        print("grid_zone:", round(
+        print("grid_zone_all:", round(
             grid.iloc[-1, 0], 2), "=>", grid.iloc[0, 0])
-        print("grid_posval_sum:", round(grid_posval_sum, 2))
+        print("grid_init_posval_sum:", round(grid_init_posval_sum, 2))
         print("-------------------")
         print("[STATUS]")
         print("{}: {}".format(market_symbol, price))
@@ -163,8 +179,8 @@ while True:
               str(round(float(0 if not quote_symbol_balance else quote_symbol_balance['free']), 2)))
         print("NAV: "+str(round(nav, 2))+"/" +
               str(round(init_nav, 2))+" ["+str(int(nav_pct))+"%]")
-        print("grid_pos: "+str(grid_cpos)+"/"+str(len(grid_pos)) +
-              " ["+str(int(grid_pos_pct))+"%]")
+        print("grid_zone_trading:", round(
+            grid_trading.iloc[-1, 0], 2), "=>", grid_trading.iloc[0, 0])
         print("avg_buy_price:", avg_buy_price)
     except Exception as err:
         print(err)
