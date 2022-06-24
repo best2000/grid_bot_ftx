@@ -72,13 +72,6 @@ while True:
         nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue']) + float(
             0 if not quote_symbol_balance else quote_symbol_balance['usdValue'])
         nav_pct = nav/init_nav*100
-        # cal grid pos pct
-        grid_pos = grid['hold'].to_list()
-        for i in range(len(grid_pos)):
-            if grid_pos[i] == 0:
-                grid_cpos = i
-                grid_pos_pct = i / len(grid_pos)*100
-                break
 
         # check trailing up
         if int(config['grid']['trailing_up']) == 1:
@@ -188,8 +181,6 @@ while True:
               str(round(init_nav, 2))+" ["+str(int(nav_pct))+"%]")
         print("grid_zone_trading:", round(
             grid_trading.iloc[-1, 0], 2), "=>", grid_trading.iloc[0, 0])
-        print("grid_pos: "+str(grid_cpos)+"/"+str(len(grid_pos)) +
-              " ["+str(int(grid_pos_pct))+"%]")
         print("avg_buy_price:", avg_buy_price)
     except Exception as err:
         print(err)
