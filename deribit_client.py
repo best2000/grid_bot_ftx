@@ -115,13 +115,16 @@ def long_put_cal(symbol: str, size: float = 1):
     #df['expiration_timestamp'] = pd.to_datetime(df['expiration_timestamp'], unit='ms')
     # df.to_csv("options.csv")
     min_trade_amount = df.iloc[0, 2]
-    print(min_trade_amount)
+    print("min_trade_amount:", min_trade_amount)
 
     df = df.query("option_type == 'put'")
 
+    re = {"instrument_name": [], "strike": [],
+          "premium_cost": [], "break_even_price": []}
+
     for i, r in df.iterrows():
         ob = c.get_order_book(3, r['instrument_name'])
-        if ob['best_ask_price'] != 0 :
+        if ob['best_ask_price'] != 0:
             # now
             price = ob['underlying_price']
             strike = r['strike']
@@ -129,22 +132,26 @@ def long_put_cal(symbol: str, size: float = 1):
             premium_cost = (premium_price*price)*size
 
             # future
-            break_even_price = strike-(premium_cost/size)
-            #future_price = 10
-            #pos_profit = size*(strike-future_price)
-            # if pos_profit > premium_cost:
-            #   profit = pos_profit-premium_cost
+            break_even_delta = premium_cost/size
+            break_even_price = strike-break_even_delta
+
+            # re
+            re['instrument_name'].append(r['instrument_name'])
+            re['strike'].append(strike)
+            re['premium_cost'].append(premium_cost)
+            re['break_even_price'].append(break_even_price)
 
             # print
-            print(r['instrument_name'])
-            print("-------------------")
-            print("price:", price)
-            print("strike:", strike)
-            print("premium_price:", premium_price)
-            print("size:", size)
-            print("premium_cost:", premium_cost)
-            print("break_even_price:", break_even_price)
-            print("-------------------")
+            #print("-------------------")
+            #print(r['instrument_name'])
+            #print("price:", price)
+            #print("strike:", strike)
+            #print("premium_price: "+str(premium_price)+" "+symbol)
+            #print("size:", size)
+            #print("premium_cost:", premium_cost)
+            #print("break_even_price:", break_even_price)
+            #print("-------------------")
+    return pd.DataFrame(re)
 
 
-long_put_cal("SOL",6)
+print(long_put_cal("SOL", 6).query("strike <= 30"))
