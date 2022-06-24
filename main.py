@@ -49,15 +49,15 @@ init_nav = float(0 if not base_symbol_balance else base_symbol_balance['usdValue
 grid = pd.read_csv('./public/grid.csv', sep=',', index_col=0)
 grid_trading = grid.query(
     'price >= {} & price <= {}'.format(init_min_zone, init_max_zone))
+grid_trading.index = grid_trading.index - grid_trading.index[0]
 print(grid_trading)
 
 # check stablecoin balance amount
 grid_init_posval_sum = grid_trading['value'].sum()
-if (int(config['main']['check_funds'])) & (float(0 if not quote_symbol_balance else quote_symbol_balance['usdValue']) < grid_posval_sum):
+if (int(config['main']['check_funds'])) & (float(0 if not quote_symbol_balance else quote_symbol_balance['usdValue']) < grid_init_posval_sum):
     raise Exception("Insufficient funds!")
 
 avg_buy_price = -1
-highest_price = -1
 while True:
     try:
         config.read('./public/config.ini')
@@ -82,11 +82,8 @@ while True:
 
         # check trailing up
         if int(config['grid']['trailing_up']) == 1:
-            # check highest_price
-            if price > highest_price:
-                highest_price = price
             # trail up
-            if highest_price > grid_trading.iloc[0, 0] and price < grid.iloc[0, 0]:
+            if price > grid_trading.iloc[0, 0] and price < grid.iloc[0, 0]:
                 grid_trading = grid_trading.iloc[0:-1]
                 new_grid = []
                 _grid = grid.query(
@@ -153,7 +150,7 @@ while True:
         # LOG
         if t == 1:
             # update grid.csv
-            grid_trading.to_csv('./public/grid.csv')
+            grid_trading.to_csv('./public/grid_trading.csv')
             # cal nav
             base_symbol_balance = get_balance(base_symbol)
             quote_symbol_balance = get_balance(quote_symbol)
@@ -172,12 +169,12 @@ while True:
                     quote_symbol, math.floor(cf), sub_account, "main")
 
         # PRINT---
-        os.system('cls' if os.name == 'nt' else 'clear')
+        #os.system('cls' if os.name == 'nt' else 'clear')
         print("--------------------")
         print("[CONFIG]")
         print("market_symbol:", market_symbol)
         print("sub_account:", sub_account)
-        print("grid_zone:", round(
+        print("grid_zone_all:", round(
             grid.iloc[-1, 0], 2), "=>", grid.iloc[0, 0])
         print("grid_init_posval_sum:", round(grid_init_posval_sum, 2))
         print("-------------------")
@@ -189,6 +186,8 @@ while True:
               str(round(float(0 if not quote_symbol_balance else quote_symbol_balance['free']), 2)))
         print("NAV: "+str(round(nav, 2))+"/" +
               str(round(init_nav, 2))+" ["+str(int(nav_pct))+"%]")
+        print("grid_zone_trading:", round(
+            grid_trading.iloc[-1, 0], 2), "=>", grid_trading.iloc[0, 0])
         print("grid_pos: "+str(grid_cpos)+"/"+str(len(grid_pos)) +
               " ["+str(int(grid_pos_pct))+"%]")
         print("avg_buy_price:", avg_buy_price)
