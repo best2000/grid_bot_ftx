@@ -54,6 +54,7 @@ print(grid_trading)
 
 # check stablecoin balance amount
 grid_init_posval_sum = grid_trading['value'].sum()
+print("grid_init_posval_sum:", grid_init_posval_sum)
 if (int(config['main']['check_funds'])) & (float(0 if not quote_symbol_balance else quote_symbol_balance['usdValue']) < grid_init_posval_sum):
     raise Exception("Insufficient funds!")
 
