@@ -8,7 +8,7 @@ from configparser import ConfigParser
 # load config.ini
 config = ConfigParser()
 config.read('./public/config.ini')
-cut_min = int(config['grid']['cut_min'])
+cut_min = int(config['grid_gen']['cut_min'])
 
 
 def grid_gap(lower_limit_price: float, upper_limit_price: float, gtype: str = "pct", **kwargs):
