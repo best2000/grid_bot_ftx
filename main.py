@@ -128,16 +128,15 @@ class Bot:
                 if self.trailing_up:
                     # trail up
                     if self.price > self.grid_trading.iloc[0, 0] and self.price < self.grid.iloc[0, 0]:
-                        self.grid_trading = self.grid_trading.iloc[0:-1]
-                        new_grid = []
-                        grid_upper_zone = self.grid.query(
-                            'price > {}'.format(self.grid_trading.iloc[0, 0]))
-                        for i in range(len(grid_upper_zone.index)-1, -1, -1):
-                            if grid_upper_zone.iloc[i, 0] < self.price:
-                                new_grid.append(
-                                    grid_upper_zone.iloc[i].to_list())
-                        if len(new_grid) > 0:
-                            for g in new_grid:
+                        grid_to_add_df = self.grid.query(
+                            'price > {} & price < {}'.format(self.grid_trading.iloc[0, 0], self.price))
+                        grid_to_add = []
+                        for i, r in grid_to_add_df.iterrows():
+                            grid_to_add.append(r.to_list())
+                        grid_to_add.reverse()
+                        for g in grid_to_add:
+                            if self.grid_trading.iloc[-1, 2] == 0:
+                                self.grid_trading = self.grid_trading.iloc[0:-1]
                                 self.grid_trading.loc[-1] = g  # adding a row
                                 self.grid_trading.index = self.grid_trading.index + 1  # shifting index
                                 self.grid_trading.sort_index(inplace=True)
@@ -223,4 +222,4 @@ print(bot.grid)
 print(bot.grid_trading)
 bot.run()
 
-#future + option stretegy
+# future + option stretegy
