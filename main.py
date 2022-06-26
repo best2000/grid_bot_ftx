@@ -181,7 +181,7 @@ class Bot:
                     pos_hold = 0
                     # check grid below price
                     for i, r in self.grid_trading.iterrows():
-                        if r['hold'] > 0 and r['hold_price'] != -1 and price > r['price']:
+                        if r['hold'] > 0 and r['hold_price'] != -1 and self.price > r['price']:
                             # add pos together
                             pos_hold += r['hold']
                             # cf cal
