@@ -1,10 +1,10 @@
-from configparser import ConfigParser
-import dotenv
-import os
 from modules.ftx_client import FtxClient, instant_limit_order
 from modules.log import add_row
 from modules.tech import check_ta
+from configparser import ConfigParser
 import pandas as pd
+import dotenv
+import os
 import time
 import math
 import datetime
@@ -222,3 +222,5 @@ bot = Bot('./public/grid.csv', "./config.ini")
 print(bot.grid)
 print(bot.grid_trading)
 bot.run()
+
+#future + option stretegy
