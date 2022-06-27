@@ -143,6 +143,8 @@ class Bot:
             print("collateralUsed:", self.pos['collateralUsed'])
             print('estimatedLiquidationPrice:',
                   self.pos['estimatedLiquidationPrice'])
+            print("position_size:", self.pos['size'])
+            
         print("NAV: "+str(round(self.nav, 2))+"/" +
               str(round(self.init_nav, 2))+" ["+str(int(self.nav_pct))+"%]")
         print("grid_zone_trading:", round(
