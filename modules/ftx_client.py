@@ -193,6 +193,11 @@ class FtxClient:
 
     def get_balances(self) -> List[dict]:
         return self._get('wallet/balances')
+    
+    def get_balance_specific(self, symbol):
+        for ass in self.get_balances():
+            if ass['coin'] == symbol:
+                return ass
 
     def get_total_usd_balance(self) -> int:
         total_usd = 0

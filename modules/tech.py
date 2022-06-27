@@ -4,7 +4,6 @@ import mplfinance as mpf
 import ccxt
 import dotenv
 import os
-from ftx_client import FtxClient
 
 # load .env
 dotenv.load_dotenv('.env')

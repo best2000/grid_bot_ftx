@@ -7,8 +7,8 @@ from configparser import ConfigParser
 
 # load config.ini
 config = ConfigParser()
-config.read('./public/config.ini')
-cut_min = int(config['grid']['cut_min'])
+config.read('./config.ini')
+cut_min = int(config['grid_gen']['cut_min'])
 
 
 def grid_gap(lower_limit_price: float, upper_limit_price: float, gtype: str = "pct", **kwargs):
@@ -105,9 +105,11 @@ def plot_img(grid: pd.DataFrame, symbol: str, timeframe: str, limit: int = 2000)
     mpf.plot(df, type='line', volume=False,
              title="\n\n\nGrid ("+symbol+" "+timeframe+")", style=s, hlines=hl, savefig='./public/grid+candles.png')
 
-def fill_hold_price(grid:pd.DataFrame):
+
+def fill_hold_price(grid: pd.DataFrame):
     grid['hold_price'] = pd.Series([-1] * len(grid['price']))
     return grid
+
 
 # CLI
 cli = typer.Typer()
