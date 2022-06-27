@@ -18,14 +18,18 @@ class Bot:
         self.env_path = env_path
         self.read_config()
         # ftx client setup
-        self.ftx_client_setup()
+        dotenv.load_dotenv(self.env_path)
+        api_key = os.environ.get("API_FTX")
+        secret_key = os.environ.get("SECRET_FTX")
+        self.ftx_client = FtxClient(api_key,
+                                    secret_key, self.sub_account)
         # grid setup
         self.grid = pd.read_csv(grid_csv_path, sep=',', index_col=0)
         self.grid_trading = self.grid.query(
             'price >= {} & price <= {}'.format(self.init_min_zone, self.init_max_zone))
         self.grid_trading.index = self.grid_trading.index - \
             self.grid_trading.index[0]
-        # variables
+        # symbol variables
         self.base_symbol = self.market_symbol.split('/')[0]
         self.quote_symbol = self.market_symbol.split('/')[1]
         # calculate init nav
@@ -45,13 +49,6 @@ class Bot:
                 "Trailing mode can only be used with fix position value.")
         # first update stats
         self.update_stats()
-
-    def ftx_client_setup(self):
-        dotenv.load_dotenv(self.env_path)
-        api_key = os.environ.get("API_FTX")
-        secret_key = os.environ.get("SECRET_FTX")
-        self.ftx_client = FtxClient(api_key,
-                                    secret_key, self.sub_account)
 
     def read_config(self):
         config = ConfigParser()
@@ -79,6 +76,7 @@ class Bot:
             self.market_symbol)
         if self.market_info['enabled'] == False:
             raise Exception("FTX suspended trading!")
+        # check price
         self.price = self.market_info['price']
         # calculate nav
         self.base_symbol_balance = self.ftx_client.get_balance_specific(
@@ -115,6 +113,8 @@ class Bot:
             self.grid_trading.iloc[-1, 0], 2), "=>", self.grid_trading.iloc[0, 0])
         print("avg_buy_price:", self.avg_buy_price)
         print("--------------------")
+        print("timestamp:", datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+        print("--------------------")
 
     def run(self):
         while True:
@@ -123,6 +123,13 @@ class Bot:
                 self.update_stats()
                 # update config
                 self.read_config()
+
+                # check stoploss
+                if self.price < self.stop_loss:
+                    # stop grid, sell all
+                    instant_limit_order(
+                        self.ftx_client, self.market_symbol, "sell", self.base_symbol_balance['free'])
+                    sys.exit()
 
                 # check trailing up
                 if self.trailing_up:
@@ -140,13 +147,6 @@ class Bot:
                                 self.grid_trading.loc[-1] = g  # adding a row
                                 self.grid_trading.index = self.grid_trading.index + 1  # shifting index
                                 self.grid_trading.sort_index(inplace=True)
-
-                # check stoploss
-                if self.price < self.stop_loss:
-                    # stop grid, sell all
-                    instant_limit_order(self.ftx_client, self.market_symbol, "sell",
-                                        float(self.base_symbol_balance['free']))
-                    sys.exit()
 
                 # TRADE
                 traded = 0
@@ -170,7 +170,7 @@ class Bot:
                             self.grid_trading.iloc[i,
                                                    3] = self.market_info['ask']
                     # buy
-                    if pos_val != 0:
+                    if pos_val > 0:
                         pos_unit = pos_val/self.market_info['ask']
                         instant_limit_order(
                             self.ftx_client, self.market_symbol, "buy", pos_unit)
@@ -190,20 +190,19 @@ class Bot:
                             self.grid_trading.iloc[i, 2] = 0
                             self.grid_trading.iloc[i, 3] = -1
                         # sell
-                    if pos_hold != 0:
+                    if pos_hold > 0:
                         instant_limit_order(
                             self.ftx_client, self.market_symbol, "sell", pos_hold)
                         traded = 1
 
                 # LOG
-                if traded == 1:
+                if traded:
                     # update grid.csv
                     self.grid_trading.to_csv('./public/grid_trading.csv')
                     # re tick
                     self.update_stats()
                     # update log
-                    dt = datetime.datetime.now()
-                    add_row(dt.strftime("%d/%m/%Y %H:%M:%S"),
+                    add_row(datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
                             self.price, self.nav, self.nav_pct, self.avg_buy_price, cf)
                     if cf > 0:
                         # transfer cf
@@ -218,8 +217,10 @@ class Bot:
 
 
 bot = Bot('./public/grid.csv', "./config.ini")
-print(bot.grid)
-print(bot.grid_trading)
+# print(bot.grid)
+# print(bot.grid_trading)
+for k in bot.__dict__:
+    print(k, ':', bot.__dict__[k])
 bot.run()
 
 # future + option stretegy
