@@ -25,24 +25,37 @@ class Bot:
                                     secret_key, self.sub_account)
         # grid setup
         self.grid = pd.read_csv(grid_csv_path, sep=',', index_col=0)
+        self.grid['value'] = self.grid['value']*self.leverage
         self.grid_trading = self.grid.query(
             'price >= {} & price <= {}'.format(self.init_min_zone, self.init_max_zone))
         self.grid_trading.index = self.grid_trading.index - \
             self.grid_trading.index[0]
-        # symbol variables
-        self.base_symbol = self.market_symbol.split('/')[0]
-        self.quote_symbol = self.market_symbol.split('/')[1]
-        # calculate init nav
-        self.base_symbol_balance = self.ftx_client.get_balance_specific(
-            self.base_symbol)
-        self.quote_symbol_balance = self.ftx_client.get_balance_specific(
-            self.quote_symbol)
-        self.init_nav = float(0 if not self.base_symbol_balance else self.base_symbol_balance['usdValue']) + float(
-            0 if not self.quote_symbol_balance else self.quote_symbol_balance['usdValue'])
-        # check stablecoin balance amount
         self.grid_trading_posval_sum = self.grid_trading['value'].sum()
-        if self.check_funds and (float(0 if not self.quote_symbol_balance else self.quote_symbol_balance['usdValue']) < self.grid_trading_posval_sum):
-            raise Exception("Insufficient funds!")
+        
+        if self.leverage > 1:
+            # symbol variables
+            self.base_symbol = self.market_symbol.split('-')[0]
+            self.quote_symbol = "USD"
+            # calculate init nav
+            self.quote_symbol_balance = self.ftx_client.get_balance_specific(
+                self.quote_symbol)
+            self.init_nav = float(
+                0 if not self.quote_symbol_balance else self.quote_symbol_balance['usdValue'])
+        else:
+            # symbol variables
+            self.base_symbol = self.market_symbol.split('/')[0]
+            self.quote_symbol = self.market_symbol.split('/')[1]
+            # calculate init nav
+            self.base_symbol_balance = self.ftx_client.get_balance_specific(
+                self.base_symbol)
+            self.quote_symbol_balance = self.ftx_client.get_balance_specific(
+                self.quote_symbol)
+            self.init_nav = float(0 if not self.base_symbol_balance else self.base_symbol_balance['usdValue']) + float(
+                0 if not self.quote_symbol_balance else self.quote_symbol_balance['usdValue'])
+            # check stablecoin balance amount
+            if self.check_funds and (float(0 if not self.quote_symbol_balance else self.quote_symbol_balance['usdValue']) < self.grid_trading_posval_sum):
+                raise Exception("Insufficient funds!")
+
         # check trailing_up mode
         if self.trailing_up and self.grid.iloc[0, 1] != self.grid.iloc[-1, 1]:
             raise Exception(
@@ -57,6 +70,7 @@ class Bot:
         self.market_symbol = config['main']['market_symbol']
         self.sub_account = config["main"]['sub_account']
         self.check_funds = int(config["main"]['check_funds'])
+        self.leverage = float(config["main"]['leverage'])
         # technical analysis
         self.timeframe_buy = config["ta"]['timeframe_buy']
         self.ema1_len_buy = int(config["ta"]['ema1_len_buy'])
@@ -69,6 +83,9 @@ class Bot:
         self.init_max_zone = float(config["grid"]['init_max_zone'])
         self.init_min_zone = float(config["grid"]['init_min_zone'])
         self.stop_loss = float(config["grid"]['stop_loss'])
+        # exception
+        if self.leverage > 1 and "PERP" not in self.market_symbol:
+            raise Exception("Can't trade leverage in spot market!")
 
     def update_stats(self):
         # check exhange pair and price
@@ -78,35 +95,56 @@ class Bot:
             raise Exception("FTX suspended trading!")
         # check price
         self.price = self.market_info['price']
-        # calculate nav
-        self.base_symbol_balance = self.ftx_client.get_balance_specific(
-            self.base_symbol)
-        self.quote_symbol_balance = self.ftx_client.get_balance_specific(
-            self.quote_symbol)
-        self.nav = float(0 if not self.base_symbol_balance else self.base_symbol_balance['usdValue']) + float(
-            0 if not self.quote_symbol_balance else self.quote_symbol_balance['usdValue'])
-        self.nav_pct = self.nav/self.init_nav*100
-        # avg buy price
-        self.avg_buy_price = round((self.init_nav - float(0 if not self.quote_symbol_balance else self.quote_symbol_balance['free']))/float(
-            -1 if not self.base_symbol_balance or self.base_symbol_balance['free'] == 0 else self.base_symbol_balance['free']), 2)
+        if self.leverage > 1:
+            # get position
+            self.pos = self.ftx_client.get_position(self.market_symbol)
+            # calculate nav
+            self.nav = self.quote_symbol_balance['usdValue'] + \
+                (0 if self.pos['size'] ==
+                 0.0 else self.pos['realizedPnl'])
+            self.nav_pct = self.nav/self.init_nav*100
+            # avg buy price
+            self.avg_buy_price = self.pos['entryPrice']
+        else:
+            # calculate nav
+            self.base_symbol_balance = self.ftx_client.get_balance_specific(
+                self.base_symbol)
+            self.quote_symbol_balance = self.ftx_client.get_balance_specific(
+                self.quote_symbol)
+            self.nav = float(0 if not self.base_symbol_balance else self.base_symbol_balance['usdValue']) + float(
+                0 if not self.quote_symbol_balance else self.quote_symbol_balance['usdValue'])
+            self.nav_pct = self.nav/self.init_nav*100
+            # avg buy price
+            self.avg_buy_price = round((self.init_nav - float(0 if not self.quote_symbol_balance else self.quote_symbol_balance['free']))/float(
+                -1 if not self.base_symbol_balance or self.base_symbol_balance['free'] == 0 else self.base_symbol_balance['free']), 2)
 
     def display_stats(self):
-        #os.system('cls' if os.name == 'nt' else 'clear')
+        # os.system('cls' if os.name == 'nt' else 'clear')
         print("--------------------")
         print("[CONFIG]")
         print("market_symbol:", self.market_symbol)
         print("sub_account:", self.sub_account)
         print("grid_zone_all:", round(
             self.grid.iloc[-1, 0], 2), "=>", self.grid.iloc[0, 0])
+        print("leverage:", self.leverage)
         print("grid_trading_posval_sum:", round(
             self.grid_trading_posval_sum, 2))
         print("-------------------")
         print("[STATUS]")
         print("{}: {}".format(self.market_symbol, self.price))
-        print(self.base_symbol+" balance: " +
-              str(round(float(0 if not self.base_symbol_balance else self.base_symbol_balance['free']), 4)))
-        print(self.quote_symbol+" balance: " +
-              str(round(float(0 if not self.quote_symbol_balance else self.quote_symbol_balance['free']), 2)))
+        if self.leverage <= 1:
+            print(self.base_symbol+" balance: " +
+                  str(round(float(0 if not self.base_symbol_balance else self.base_symbol_balance['free']), 4)))
+            print(self.quote_symbol+" balance: " +
+                  str(round(float(0 if not self.quote_symbol_balance else self.quote_symbol_balance['free']), 2)))
+        else:
+            print(self.quote_symbol+" balance: " +
+                  str(round(float(0 if not self.quote_symbol_balance else self.quote_symbol_balance['free']), 2)))
+            print("collateralUsed:", self.pos['collateralUsed'])
+            print('estimatedLiquidationPrice:',
+                  self.pos['estimatedLiquidationPrice'])
+            print("position_size:", self.pos['size'])
+            
         print("NAV: "+str(round(self.nav, 2))+"/" +
               str(round(self.init_nav, 2))+" ["+str(int(self.nav_pct))+"%]")
         print("grid_zone_trading:", round(
@@ -127,8 +165,12 @@ class Bot:
                 # check stoploss
                 if self.price < self.stop_loss:
                     # stop grid, sell all
-                    instant_limit_order(
-                        self.ftx_client, self.market_symbol, "sell", self.base_symbol_balance['free'])
+                    if self.leverage > 1:
+                        instant_limit_order(
+                            self.ftx_client, self.market_symbol, "sell", self.pos['size'])
+                    else:
+                        instant_limit_order(
+                            self.ftx_client, self.market_symbol, "sell", self.base_symbol_balance['free'])
                     sys.exit(0)
 
                 # check trailing up
