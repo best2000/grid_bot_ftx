@@ -129,7 +129,7 @@ class Bot:
                     # stop grid, sell all
                     instant_limit_order(
                         self.ftx_client, self.market_symbol, "sell", self.base_symbol_balance['free'])
-                    sys.exit()
+                    sys.exit(0)
 
                 # check trailing up
                 if self.trailing_up:
