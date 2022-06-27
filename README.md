@@ -30,7 +30,8 @@ nano /app/config.ini
 
 ```shell
 #generate grid.csv
-python /app/grid_gen.py <[OPTIONS]> <MIN_ZONE> <MAX_ZONE> <GAP_TYPE> <POS_TYPE> <POS_VAL>
+cd /app
+python grid_gen.py <[OPTIONS]> <MIN_ZONE> <MAX_ZONE> <GAP_TYPE> <POS_TYPE> <POS_VAL>
 ```
 
 -   after generated `grid.csv` you can still customize your generated grid at `/app/public/grid.csv` before start runing bot
@@ -38,11 +39,13 @@ python /app/grid_gen.py <[OPTIONS]> <MIN_ZONE> <MAX_ZONE> <GAP_TYPE> <POS_TYPE> 
 
 ```shell
 #plot image from ./public/grid.csv (for preview)
-python /app/grid_plot.py <[OPTIONS]> <MARKET_SYMBOL> <TIMEFRAME> <LIMIT>
+cd /app
+python grid_plot.py <[OPTIONS]> <MARKET_SYMBOL> <TIMEFRAME> <LIMIT>
 ```
 
 ### 4. Start runing bot
 
 ```shell
-python /app/main.py
+cd /app
+python main.py
 ```
