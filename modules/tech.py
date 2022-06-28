@@ -78,14 +78,14 @@ def plot(df: pd.DataFrame, symbol: str, timeframe: str):
              title="\n"+symbol+" "+timeframe+"\nTop Signals", style=s, vlines=vl_down)
 
 
-def check_ta(symbol: str, timeframe: str,  ema1_len: int = 5, ema2_len: int = 10, **kwargs) -> int:
-    df = get_candles(symbol, timeframe, 100)
+def check_ta(symbol: str, timeframe: str,  ema1_len: int = 5, ema2_len: int = 10, **kwargs) -> pd.DataFrame:
+    df = get_candles(symbol, timeframe, 1000)
     df = signal(df, ema1_len, ema2_len)
     if 'name' in kwargs:
         df.to_csv("./public/ta_"+str(kwargs['name'])+".csv")
     else:
         df.to_csv("./public/ta.csv")
-    return int(df.iloc[-1, -1])
+    return df
 
 
 """

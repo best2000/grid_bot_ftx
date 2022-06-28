@@ -31,7 +31,7 @@ class Bot:
         self.grid_trading.index = self.grid_trading.index - \
             self.grid_trading.index[0]
         self.grid_trading_posval_sum = self.grid_trading['value'].sum()
-        
+
         if self.leverage > 1:
             # symbol variables
             self.base_symbol = self.market_symbol.split('-')[0]
@@ -78,6 +78,7 @@ class Bot:
         self.timeframe_sell = config["ta"]['timeframe_sell']
         self.ema1_len_sell = int(config["ta"]['ema1_len_sell'])
         self.ema2_len_sell = int(config["ta"]['ema2_len_sell'])
+        self.buy_upto_cross = int(config["ta"]['buy_upto_cross'])
         # grid
         self.trailing_up = int(config["grid"]['trailing_up'])
         self.init_max_zone = float(config["grid"]['init_max_zone'])
@@ -144,7 +145,7 @@ class Bot:
             print('estimatedLiquidationPrice:',
                   self.pos['estimatedLiquidationPrice'])
             print("position_size:", self.pos['size'])
-            
+
         print("NAV: "+str(round(self.nav, 2))+"/" +
               str(round(self.init_nav, 2))+" ["+str(int(self.nav_pct))+"%]")
         print("grid_zone_trading:", round(
@@ -194,16 +195,29 @@ class Bot:
                 traded = 0
                 cf = 0
                 # check ta signal
-                ta_buy = check_ta(self.market_symbol, self.timeframe_buy,
-                                  self.ema1_len_buy, self.ema2_len_buy, name="buy")
-                ta_sell = check_ta(self.market_symbol, self.timeframe_sell,
-                                   self.ema1_len_sell, self.ema2_len_sell, name="sell")
+                ta_buy_df = check_ta(self.market_symbol, self.timeframe_buy,
+                                     self.ema1_len_buy, self.ema2_len_buy, name="buy")
+                ta_buy_sig = ta_buy_df.iloc[-1, -1]
+                ta_sell_df = check_ta(self.market_symbol, self.timeframe_sell,
+                                      self.ema1_len_sell, self.ema2_len_sell, name="sell")
+                ta_sell_sig = ta_sell_df.iloc[-1, -1]
+
                 # BUY CHECK
-                if ta_buy == 1:
+                if ta_buy_sig == 1:
+                    buy_upto_price = self.grid.iloc[0, 0]+1605
+                    # cal buy upto
+                    if self.buy_upto_cross:
+                        for i in range(len(ta_buy_df)-1, -1, -1):
+                            if ta_buy_df.iloc[i, -1] == 2:
+                                if i > 0:
+                                    buy_upto_price = ta_buy_df.iloc[i-1, 2]
+                                else:
+                                    buy_upto_price = ta_buy_df.iloc[i, 2]
+                                break
                     pos_val = 0
                     # check grid above price
                     for i, r in self.grid_trading.iterrows():
-                        if r['price'] >= self.market_info['ask'] and r['hold'] == 0 and r['hold_price'] == -1:
+                        if r['price'] >= self.market_info['ask'] and r['hold'] == 0 and r['hold_price'] == -1 and r['price'] < buy_upto_price:
                             # add pos together
                             pos_val += r['value']
                             # update grid
@@ -218,7 +232,7 @@ class Bot:
                             self.ftx_client, self.market_symbol, "buy", pos_unit)
                         traded = 1
                 # SELL CHECK
-                if ta_sell == 2:
+                if ta_sell_sig == 2:
                     pos_hold = 0
                     # check grid below price
                     for i, r in self.grid_trading.iterrows():
