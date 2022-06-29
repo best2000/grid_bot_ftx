@@ -210,7 +210,10 @@ class Bot:
                         for i in range(len(ta_buy_df)-1, -1, -1):
                             if ta_buy_df.iloc[i, -1] == 2:
                                 if i > 0:
-                                    buy_upto_price = ta_buy_df.iloc[i-1, 2]
+                                    if ta_buy_df.iloc[i, 2] > ta_buy_df.iloc[i-1, 2]:
+                                        buy_upto_price = ta_buy_df.iloc[i, 2]
+                                    else:
+                                        buy_upto_price = ta_buy_df.iloc[i-1, 2]
                                 else:
                                     buy_upto_price = ta_buy_df.iloc[i, 2]
                                 break
