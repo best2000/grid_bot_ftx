@@ -9,7 +9,7 @@
 #build docker image
 docker build -t <name>:<tag> .
 #run container from image, interactive mode, auto delete, mapped host volume to check log data
-docker run -it --rm -v <hostDirectoryName>:/app/public <imageId> /bin/bash
+docker run -it --rm -v <host_directory_name>:/app/public <image_id> /bin/bash
 ```
 - check host mapped volume for linux at `/var/lib/docker/volumes/`
 - for windows at `\\wsl$\docker-desktop-data\version-pack-data\community\docker\volumes `
@@ -48,4 +48,9 @@ python grid_plot.py <[OPTIONS]> <MARKET_SYMBOL> <TIMEFRAME> <LIMIT>
 ```shell
 cd /app
 python main.py
+```
+
+- To get back in the container shell run this command
+```shell
+docker exec -it <container_id> bash
 ```
