@@ -197,13 +197,13 @@ class Bot:
                 # check ta signal
                 ta_buy_df = check_ta(self.market_symbol, self.timeframe_buy,
                                      self.ema1_len_buy, self.ema2_len_buy, name="buy")
-                ta_buy_sig = ta_buy_df.iloc[-1, -1]
+                buy_sig = ta_buy_df.iloc[-2, -1]
                 ta_sell_df = check_ta(self.market_symbol, self.timeframe_sell,
                                       self.ema1_len_sell, self.ema2_len_sell, name="sell")
-                ta_sell_sig = ta_sell_df.iloc[-1, -1]
+                sell_sig = ta_sell_df.iloc[-2, -1]
 
                 # BUY CHECK
-                if ta_buy_sig == 1:
+                if buy_sig == 1:  # check latest ema cross up
                     buy_upto_price = self.grid.iloc[0, 0]+1605
                     # cal buy upto
                     if self.buy_upto_cross:
@@ -232,7 +232,7 @@ class Bot:
                             self.ftx_client, self.market_symbol, "buy", pos_unit)
                         traded = 1
                 # SELL CHECK
-                if ta_sell_sig == 2:
+                if sell_sig == 2:  # check latest ema cross down
                     pos_hold = 0
                     # check grid below price
                     for i, r in self.grid_trading.iterrows():
@@ -269,7 +269,7 @@ class Bot:
                 self.display_stats()
             except Exception as err:
                 print(err)
-            time.sleep(65)
+            time.sleep(62)
 
 
 bot = Bot('./public/grid.csv', "./config.ini")
