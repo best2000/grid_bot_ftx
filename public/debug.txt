@@ -1,0 +1,2 @@
+start 1234567890
+buy_sig=0 sell_sig=0

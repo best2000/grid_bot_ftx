@@ -1,6 +1,6 @@
 .env
 __pycache__/
-public/
 t.py
 public/ta_buy.csv
 public/ta_sell.csv
+public/log.csv
