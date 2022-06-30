@@ -99,13 +99,14 @@ class Bot:
         if self.leverage > 1:
             # get position
             self.pos = self.ftx_client.get_position(self.market_symbol)
+            print(self.pos)
             # calculate nav
             self.nav = self.quote_symbol_balance['usdValue'] + \
-                (0 if self.pos['size'] ==
-                 0.0 else self.pos['realizedPnl'])
+                (0 if self.pos == None or 
+                 self.pos['size'] == 0.0 else self.pos['realizedPnl'])
             self.nav_pct = self.nav/self.init_nav*100
             # avg buy price
-            self.avg_buy_price = self.pos['entryPrice']
+            self.avg_buy_price = 0 if self.pos == None else self.pos['entryPrice']
         else:
             # calculate nav
             self.base_symbol_balance = self.ftx_client.get_balance_specific(
@@ -201,6 +202,14 @@ class Bot:
                 ta_sell_df = check_ta(self.market_symbol, self.timeframe_sell,
                                       self.ema1_len_sell, self.ema2_len_sell, name="sell")
                 sell_sig = ta_sell_df.iloc[-2, -1]
+                
+                #MARK: debug
+                debug_log = "buy_sig="+str(buy_sig)+" sell_sig="+str(sell_sig)
+                with open("./public/debug.txt", "r") as f:
+                    last_line = f.readlines()[-1]
+                if last_line != debug_log:
+                    with open("./public/debug.txt", "a") as f:
+                        f.write("\n"+debug_log)
 
                 # BUY CHECK
                 if buy_sig == 1:  # check latest ema cross up
@@ -230,10 +239,18 @@ class Bot:
                                                    3] = self.market_info['ask']
                     # buy
                     if pos_val > 0:
+                        #MARK: debug
+                        with open("./public/debug.txt", "a") as f:
+                            f.write("\nBUYNOWWW")
+                            
                         pos_unit = pos_val/self.market_info['ask']
-                        instant_limit_order(
-                            self.ftx_client, self.market_symbol, "buy", pos_unit)
+                        #instant_limit_order(self.ftx_client, self.market_symbol, "buy", pos_unit)
                         traded = 1
+                    
+                    #MARK: debug
+                    with open("./public/debug.txt", "a") as f:
+                        f.write("\nBUY SUMMARIE=>"+str(buy_upto_price)+" "+str(pos_val))
+                        
                 # SELL CHECK
                 if sell_sig == 2:  # check latest ema cross down
                     pos_hold = 0
@@ -253,6 +270,10 @@ class Bot:
                         instant_limit_order(
                             self.ftx_client, self.market_symbol, "sell", pos_hold)
                         traded = 1
+                    
+                    #MARK: debug
+                    with open("./public/debug.txt", "a") as f:
+                        f.write("\nSELL=>"+str(pos_hold))
 
                 # LOG
                 if traded:
