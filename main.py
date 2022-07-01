@@ -1,5 +1,5 @@
 from modules.ftx_client import FtxClient, instant_limit_order
-from modules.log import add_row
+from modules.trade_log import add_row
 from modules.tech import check_ta
 from configparser import ConfigParser
 import pandas as pd
@@ -9,6 +9,22 @@ import time
 import math
 import datetime
 import sys
+import logging
+from logging.handlers import TimedRotatingFileHandler
+from logging import Formatter
+
+
+# logger setup
+logger = logging.getLogger("main")
+
+# create handler
+handler = TimedRotatingFileHandler(
+    filename='./public/log/main.log', when='D', interval=1, backupCount=7, encoding='utf-8', delay=False)
+
+formatter = Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 
 class Bot:
@@ -102,7 +118,7 @@ class Bot:
             print(self.pos)
             # calculate nav
             self.nav = self.quote_symbol_balance['usdValue'] + \
-                (0 if self.pos == None or 
+                (0 if self.pos == None or
                  self.pos['size'] == 0.0 else self.pos['realizedPnl'])
             self.nav_pct = self.nav/self.init_nav*100
             # avg buy price
@@ -177,6 +193,10 @@ class Bot:
 
                 # check trailing up
                 if self.trailing_up:
+                    #MARK: debug
+                    logger.debug("price={} | grid_trading.iloc[0, 0]={} | len(grid_trading)={} | grid.iloc[0, 0]={}".format(
+                        self.price, self.grid_trading.iloc[0, 0], len(self.grid_trading), self.grid.iloc[0, 0]))
+
                     # trail up
                     if self.price > self.grid_trading.iloc[0, 0] and self.price < self.grid.iloc[0, 0]:
                         grid_to_add_df = self.grid.query(
@@ -192,6 +212,10 @@ class Bot:
                                 self.grid_trading.index = self.grid_trading.index + 1  # shifting index
                                 self.grid_trading.sort_index(inplace=True)
 
+                    #MARK: debug
+                    logger.debug("grid_trading.iloc[0, 0]={} | len(grid_trading)={}".format(
+                        self.price, self.grid_trading.iloc[0, 0], len(self.grid_trading)))
+
                 # TRADE
                 traded = 0
                 cf = 0
@@ -202,14 +226,10 @@ class Bot:
                 ta_sell_df = check_ta(self.market_symbol, self.timeframe_sell,
                                       self.ema1_len_sell, self.ema2_len_sell, name="sell")
                 sell_sig = ta_sell_df.iloc[-2, -1]
-                
+
                 #MARK: debug
-                debug_log = "buy_sig="+str(buy_sig)+" sell_sig="+str(sell_sig)
-                with open("./public/debug.txt", "r") as f:
-                    last_line = f.readlines()[-1]
-                if last_line != debug_log:
-                    with open("./public/debug.txt", "a") as f:
-                        f.write("\n"+debug_log)
+                logger.debug(
+                    "buy_sig={} | sell_sig={}".format(buy_sig, sell_sig))
 
                 # BUY CHECK
                 if buy_sig == 1:  # check latest ema cross up
@@ -226,9 +246,7 @@ class Bot:
                                 else:
                                     buy_upto_price = ta_buy_df.iloc[i, 2]
                                 break
-                    #MARK: debug
-                        with open("./public/debug.txt", "a") as f:
-                            f.write("\nBUYupto "+str(buy_upto_price)+" price"+str(self.price)+" "+str(self.market_info['ask']))
+
                     pos_val = 0
                     # check grid above price
                     for i, r in self.grid_trading.iterrows():
@@ -240,20 +258,21 @@ class Bot:
                                                    2] = r['value']/self.market_info['ask']
                             self.grid_trading.iloc[i,
                                                    3] = self.market_info['ask']
+
+                    #MARK: debug
+                    logger.debug("price={} | buy_upto_price={} | posval={}".format(
+                        self.market_info['ask'], buy_upto_price, pos_val))
+
                     # buy
                     if pos_val > 0:
-                        #MARK: debug
-                        with open("./public/debug.txt", "a") as f:
-                            f.write("\nBUYNOWWW")
-                            
                         pos_unit = pos_val/self.market_info['ask']
-                        #instant_limit_order(self.ftx_client, self.market_symbol, "buy", pos_unit)
+                        instant_limit_order(
+                            self.ftx_client, self.market_symbol, "buy", pos_unit)
                         traded = 1
-                    
-                    #MARK: debug
-                    with open("./public/debug.txt", "a") as f:
-                        f.write("\nBUY SUMMARIE=>"+str(buy_upto_price)+" "+str(pos_val))
-                        
+
+                        #MARK: debug
+                        logger.debug("brought!")
+
                 # SELL CHECK
                 if sell_sig == 2:  # check latest ema cross down
                     pos_hold = 0
@@ -268,15 +287,18 @@ class Bot:
                             # update grid
                             self.grid_trading.iloc[i, 2] = 0
                             self.grid_trading.iloc[i, 3] = -1
-                        # sell
+
+                    #MARK: debug
+                    logger.debug("pos_hold={}".format)
+
+                    # sell
                     if pos_hold > 0:
                         instant_limit_order(
                             self.ftx_client, self.market_symbol, "sell", pos_hold)
                         traded = 1
-                    
-                    #MARK: debug
-                    with open("./public/debug.txt", "a") as f:
-                        f.write("\nSELL=>"+str(pos_hold))
+
+                        #MARK: debug
+                        logger.debug("sold!")
 
                 # LOG
                 if traded:
@@ -296,6 +318,7 @@ class Bot:
                 self.display_stats()
             except Exception as err:
                 print(err)
+                logger.error(err)
             time.sleep(62)
 
 
