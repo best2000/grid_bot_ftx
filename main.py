@@ -226,6 +226,9 @@ class Bot:
                                 else:
                                     buy_upto_price = ta_buy_df.iloc[i, 2]
                                 break
+                    #MARK: debug
+                        with open("./public/debug.txt", "a") as f:
+                            f.write("\nBUYupto "+str(buy_upto_price)+" price"+str(self.price)+" "+str(self.market_info['ask']))
                     pos_val = 0
                     # check grid above price
                     for i, r in self.grid_trading.iterrows():
