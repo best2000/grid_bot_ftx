@@ -95,6 +95,9 @@ class Bot:
         self.ema1_len_sell = int(config["ta"]['ema1_len_sell'])
         self.ema2_len_sell = int(config["ta"]['ema2_len_sell'])
         self.buy_upto_cross = int(config["ta"]['buy_upto_cross'])
+        self.timeframe_buy_upto = config["ta"]['timeframe_buy_upto']
+        self.ema1_len_buy_upto = int(config["ta"]['ema1_len_buy_upto'])
+        self.ema2_len_buy_upto = int(config["ta"]['ema2_len_buy_upto'])
         # grid
         self.trailing_up = int(config["grid"]['trailing_up'])
         self.init_max_zone = float(config["grid"]['init_max_zone'])
@@ -182,6 +185,7 @@ class Bot:
 
                 # check stoploss
                 if self.price < self.stop_loss:
+                    logger.info("stop_loss")
                     # stop grid, sell all
                     if self.leverage > 1:
                         instant_limit_order(
@@ -193,7 +197,7 @@ class Bot:
 
                 # check trailing up
                 if self.trailing_up:
-                    #MARK: debug
+                    logger.info("trailing_up")
                     logger.debug("price={} | grid_trading.iloc[0, 0]={} | len(grid_trading)={} | grid.iloc[0, 0]={}".format(
                         self.price, self.grid_trading.iloc[0, 0], len(self.grid_trading), self.grid.iloc[0, 0]))
 
@@ -212,7 +216,6 @@ class Bot:
                                 self.grid_trading.index = self.grid_trading.index + 1  # shifting index
                                 self.grid_trading.sort_index(inplace=True)
 
-                    #MARK: debug
                     logger.debug("grid_trading.iloc[0, 0]={} | len(grid_trading)={}".format(
                         self.price, self.grid_trading.iloc[0, 0], len(self.grid_trading)))
 
@@ -221,30 +224,32 @@ class Bot:
                 cf = 0
                 # check ta signal
                 ta_buy_df = check_ta(self.market_symbol, self.timeframe_buy,
-                                     self.ema1_len_buy, self.ema2_len_buy, name="buy")
+                                     self.ema1_len_buy, self.ema2_len_buy, 100, name="buy")
                 buy_sig = ta_buy_df.iloc[-2, -1]
+                ta_buy_upto_df = check_ta(self.market_symbol, self.timeframe_buy_upto,
+                                          self.ema1_len_buy_upto, self.ema2_len_buy_upto, 300, name="buy_upto")
                 ta_sell_df = check_ta(self.market_symbol, self.timeframe_sell,
-                                      self.ema1_len_sell, self.ema2_len_sell, name="sell")
+                                      self.ema1_len_sell, self.ema2_len_sell, 100, name="sell")
                 sell_sig = ta_sell_df.iloc[-2, -1]
 
-                #MARK: debug
                 logger.debug(
                     "buy_sig={} | sell_sig={}".format(buy_sig, sell_sig))
 
                 # BUY CHECK
                 if buy_sig == 1:  # check latest ema cross up
+                    logger.info("buy_sig")
                     buy_upto_price = self.grid.iloc[0, 0]+1605
                     # cal buy upto
                     if self.buy_upto_cross:
-                        for i in range(len(ta_buy_df)-1, -1, -1):
-                            if ta_buy_df.iloc[i, -1] == 2:
+                        for i in range(len(ta_buy_upto_df)-1, -1, -1):
+                            if ta_buy_upto_df.iloc[i, -1] == 2:
                                 if i > 0:
-                                    if ta_buy_df.iloc[i, 2] > ta_buy_df.iloc[i-1, 2]:
-                                        buy_upto_price = ta_buy_df.iloc[i, 2]
+                                    if ta_buy_upto_df.iloc[i, 2] > ta_buy_upto_df.iloc[i-1, 2]:
+                                        buy_upto_price = ta_buy_upto_df.iloc[i, 2]
                                     else:
-                                        buy_upto_price = ta_buy_df.iloc[i-1, 2]
+                                        buy_upto_price = ta_buy_upto_df.iloc[i-1, 2]
                                 else:
-                                    buy_upto_price = ta_buy_df.iloc[i, 2]
+                                    buy_upto_price = ta_buy_upto_df.iloc[i, 2]
                                 break
 
                     pos_val = 0
@@ -259,7 +264,6 @@ class Bot:
                             self.grid_trading.iloc[i,
                                                    3] = self.market_info['ask']
 
-                    #MARK: debug
                     logger.debug("price={} | buy_upto_price={} | posval={}".format(
                         self.market_info['ask'], buy_upto_price, pos_val))
 
@@ -270,11 +274,11 @@ class Bot:
                             self.ftx_client, self.market_symbol, "buy", pos_unit)
                         traded = 1
 
-                        #MARK: debug
                         logger.debug("brought!")
 
                 # SELL CHECK
                 if sell_sig == 2:  # check latest ema cross down
+                    logger.info("sell_sig")
                     pos_hold = 0
                     # check grid below price
                     for i, r in self.grid_trading.iterrows():
@@ -288,20 +292,19 @@ class Bot:
                             self.grid_trading.iloc[i, 2] = 0
                             self.grid_trading.iloc[i, 3] = -1
 
-                    #MARK: debug
-                    logger.debug("pos_hold={}".format)
+                    logger.debug("pos_hold={}".format(pos_hold))
 
                     # sell
                     if pos_hold > 0:
                         instant_limit_order(
                             self.ftx_client, self.market_symbol, "sell", pos_hold)
                         traded = 1
-
-                        #MARK: debug
+                        
                         logger.debug("sold!")
 
                 # LOG
                 if traded:
+                    logger.info("traded")
                     # update grid.csv
                     self.grid_trading.to_csv('./public/grid_trading.csv')
                     # re tick
