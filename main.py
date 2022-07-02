@@ -118,7 +118,6 @@ class Bot:
         if self.leverage > 1:
             # get position
             self.pos = self.ftx_client.get_position(self.market_symbol)
-            print(self.pos)
             # calculate nav
             self.nav = self.quote_symbol_balance['usdValue'] + \
                 (0 if self.pos == None or
