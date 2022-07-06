@@ -87,6 +87,7 @@ class Bot:
         self.sub_account = config["main"]['sub_account']
         self.check_funds = int(config["main"]['check_funds'])
         self.leverage = float(config["main"]['leverage'])
+        self.cf_account = config['main']['cf_account']
         # technical analysis
         self.timeframe_buy = config["ta"]['timeframe_buy']
         self.ema1_len_buy = int(config["ta"]['ema1_len_buy'])
@@ -230,7 +231,7 @@ class Bot:
                 ta_sell_df = check_ta(self.market_symbol, self.timeframe_sell,
                                       self.ema1_len_sell, self.ema2_len_sell, 100, name="sell")
                 sell_sig = ta_sell_df.iloc[-2, -1]
-
+                
                 logger.debug(
                     "buy_sig={} | sell_sig={}".format(buy_sig, sell_sig))
 
@@ -314,7 +315,7 @@ class Bot:
                     if cf > 0:
                         # transfer cf
                         self.ftx_client.subaccount_transfer(
-                            self.quote_symbol, math.floor(cf), self.sub_account, "main")
+                            self.quote_symbol, math.floor(cf), self.sub_account, self.cf_account)
 
                 # print stats
                 self.display_stats()
