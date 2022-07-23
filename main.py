@@ -9,8 +9,22 @@ import time
 import math
 import datetime
 import sys
-import json
-import pickle
+import logging
+from logging.handlers import TimedRotatingFileHandler
+from logging import Formatter
+
+
+# logger setup
+logger = logging.getLogger("main")
+
+# create handler
+handler = TimedRotatingFileHandler(
+    filename='./public/log/main.log', when='D', interval=1, backupCount=7, encoding='utf-8', delay=False)
+
+formatter = Formatter(fmt='%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 
 class Bot:
@@ -160,16 +174,6 @@ class Bot:
         print("--------------------")
         print("timestamp:", datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
         print("--------------------")
-
-    def save_instance(self):
-        # json
-        instance = dict(self.__dict__)  # make copy of dict
-        instance['ftx_client'] = str(instance['ftx_client'])
-        with open("./public/instance.json", "w") as file_json:
-            json.dump(instance, file_json, indent=4)
-        # pickle
-        with open('./instance.pkl', 'wb') as file_pkl:
-            pickle.dump(self, file_pkl, pickle.HIGHEST_PROTOCOL)
 
     def run(self):
         while True:
@@ -321,16 +325,11 @@ class Bot:
             time.sleep(62)
 
 
-try:
-    with open('./instance.pkl', 'rb') as file_pkl:
-        read_instance = input("use exist instance [y/n]?: ")
-        if read_instance == "y":
-            bot = pickle.load(file_pkl)
-        elif read_instance == "n":
-            raise Exception()
-except Exception as err:
-    bot = Bot('./public/grid.csv', "./config.ini")
-finally:
-    bot.run()
+bot = Bot('./public/grid.csv', "./config.ini")
+# print(bot.grid)
+# print(bot.grid_trading)
+for k in bot.__dict__:
+    print(k, ':', bot.__dict__[k])
+bot.run()
 
 # future + option stretegy
