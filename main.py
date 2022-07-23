@@ -8,7 +8,7 @@ import os
 import time
 import math
 import datetime
-import sys
+import sys,json,pickle
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from logging import Formatter
@@ -175,11 +175,22 @@ class Bot:
         print("timestamp:", datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
         print("--------------------")
 
+    def save_instance(self):
+        # json
+        instance = dict(self.__dict__)  # make copy of dict
+        instance['ftx_client'] = str(instance['ftx_client'])
+        with open("./public/instance.json", "w") as file_json:
+            json.dump(instance, file_json, indent=4)
+        # pickle
+        with open('./instance.pkl', 'wb') as file_pkl:
+            pickle.dump(self, file_pkl, pickle.HIGHEST_PROTOCOL)
+            
     def run(self):
         while True:
             try:
                 # price tick
                 self.update_stats()
+                self.save_instance()
                 # update config
                 self.read_config()
 
@@ -309,6 +320,7 @@ class Bot:
                     self.grid_trading.to_csv('./public/grid_trading.csv')
                     # re tick
                     self.update_stats()
+                    self.save_instance()
                     # update log
                     add_row(datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
                             self.price, self.nav, self.nav_pct, self.avg_buy_price, cf)
@@ -324,12 +336,16 @@ class Bot:
                 logger.error(err)
             time.sleep(62)
 
-
-bot = Bot('./public/grid.csv', "./config.ini")
-# print(bot.grid)
-# print(bot.grid_trading)
-for k in bot.__dict__:
-    print(k, ':', bot.__dict__[k])
-bot.run()
+try:
+    with open('./instance.pkl', 'rb') as file_pkl:
+        read_instance = input("use exist instance [y/n]?: ")
+        if read_instance == "y":
+            bot = pickle.load(file_pkl)
+        elif read_instance == "n":
+            raise Exception()
+except Exception as err:
+    bot = Bot('./public/grid.csv', "./config.ini")
+finally:
+    bot.run()
 
 # future + option stretegy
